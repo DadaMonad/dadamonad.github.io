@@ -6,12 +6,12 @@
 		<a href="{{ '/Yatta' | prepend: site.baseurl | prepend: site.url }}">Yatta</a><span>/</span>
 	</li>
   <li>
-		<a href="{{ '/about' | prepend: site.baseurl | prepend: site.url }}">About Me</a><span>/</span>
+		<a href="{{ '/faq' | prepend: site.baseurl | prepend: site.url }}">Help</a><span>/</span>
 	</li>
 </ul>
 
 {% if page.title-picture %}
-<div style='background:url({{page.title-picture}}) no-repeat center center;width:100%;height:190px;text-align:center'></div>
+<div style='background:url({{page.title-picture | prepend: site.baseurl |prepend: site.url }}) no-repeat center center;width:100%;height:190px;text-align:center'></div>
 {% endif %}
 {% if page.page-urls %}
 <ul>
