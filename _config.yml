@@ -1,10 +1,10 @@
 # Harmony Jekyll theme general configurations 
 
 # Base URL
-baseurl: /_site/
+baseurl: ""
 
 # Site live URL
-url: http://king-cave.codio.io:4000
+url: ""
 
 # Harmony theme configuration. Please change accordingly.
 harmony:
