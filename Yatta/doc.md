@@ -4,4 +4,7 @@ title: Documentation
 permalink: /Yatta/doc/
 
 ---
-.. 
+
+```
+console.log("dtrn")
+```
