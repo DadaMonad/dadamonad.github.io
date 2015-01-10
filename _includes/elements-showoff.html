@@ -1,0 +1,17 @@
+
+<polymer-element name="elements-showoff" attributes="val">
+<template>
+<yatta-element val={% raw %}{{ val }}{% endraw %}>
+  <yatta-property name="slider" val={% raw %}{{ slider }}{% endraw %}></yatta-property>
+</yatta-element>
+{% raw %}<paper-slider max="100" immediateValue={{ slider }}></paper-slider>{% endraw %}
+</template>
+<script>
+Polymer("elements-showoff", {
+  ready: function(){
+    console.log("drtn")
+    console.log("dtrn")
+  }
+});
+</script>
+</polymer-element>

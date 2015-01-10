@@ -4,6 +4,7 @@ title: Examples
 permalink: /Yatta/examples/
 ---
 
+
 This page is dedicated to examples built with Yatta. Write me, if you have something that you would like to commit!
 
 
@@ -106,36 +107,36 @@ mutable_string.bind(textarea)
 
 I want to make Yatta as easy as possible. When I [stumbled upon Polymer](https://plus.google.com/110297010634240861782/posts/FireNaHeDB6), I was amazed how it can be to create responsive and powerful applications with just a few linew of code.
 
+<!--div align="center">
 <iframe width="560" style="max-width:100%" height="315" src="//www.youtube.com/embed/svfu9iQ8cyg" frameborder="0" allowfullscreen></iframe>
+</div-->
 
 You can use Yatta and some of the Yatta-Connectors as a *custom element*.
 
-<template>
-  <yatta-element val={{yatta}}></yatta-element>
-</template>
-<paper-slider></paper-slider>
-
+<elements-showoff></elements-showoff>
 
 <hr>
 What do **you** want to see next?
 
 
-<script src="/_site/assets/bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.min.js"></script>
-<script src="/_site/assets/bower_components/Yatta/yatta.js"></script>
-<!--script src="/_site/assets/bower_components/webcomponentsjs/webcomponents.min.js"></script>
-<link rel="import" href="/_site/assets/bower_components/polymer/polymer.html">
-<link rel="import" href="/_site/assets/bower_components/Yatta/yatta-element.html">
-<link rel="import" href="/_site/assets/bower_components/paper-slider/paper-slider.html"-->
+<script src="{{ site.baseurl }}assets/bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.min.js"></script>
+<script src="{{ site.baseurl }}assets/bower_components/Yatta/yatta.js"></script>
+
+<link rel="import" href="{{site.baseurl}}assets/bower_components/polymer/polymer.html">
+<link rel="import" href="{{site.baseurl}}assets/bower_components/Yatta/yatta-element.html">
+{% include elements-showoff.html %}
 <script>
 var connector = new XMPPConnector("tutorial");
 var yatta = new Yatta(connector);
-
 connector.whenSynced(function(){
   if(yatta.val("shared_text") == null){
     yatta.val("shared_text","")
+    yatta.val("slider",39)
   }
   var textarea = document.querySelector("#shared-text")
   yatta.val("shared_text").bind(textarea)
+  var ce = document.querySelector("elements-showoff");
+  ce.val = yatta
   // document.querySelector("yatta-element").val = yatta;
 });
 </script>
