@@ -1,6 +1,0 @@
-[submodule "modules/Yatta"]
-	path = modules/Yatta
-	url = https://github.com/rwth-acis/Yatta.git
-[submodule "modules/Yatta-Connectors"]
-	path = modules/Yatta-Connectors
-	url = https://github.com/DadaMonad/Yatta-Connectors.git

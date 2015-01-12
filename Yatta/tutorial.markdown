@@ -188,8 +188,8 @@ Manipulate the values of the *yatta* object, and observe the live changes of the
 What do **you** want to see next?
 
 
-<script src="{{ site.baseurl }}modules/Yatta-Connectors/xmpp-connector/xmpp-connector.js"></script>
-<script src="{{ site.baseurl }}modules/Yatta/yatta.js"></script>
+<script src="{{ site.baseurl }}bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.js"></script>
+<script src="{{ site.baseurl }}bower_components/Yatta/yatta.js"></script>
 <link rel="import" href="../elements/elements-showoff.html">
 
 <!--script>

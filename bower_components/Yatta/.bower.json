@@ -1,6 +1,6 @@
 {
   "name": "Yatta",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "homepage": "https://github.com/DadaMonad/Yatta",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
@@ -30,14 +30,13 @@
     "paper-slider": "Polymer/paper-slider#~0.5.2",
     "webcomponentsjs": "~0.5.2"
   },
-  "_release": "0.0.7",
+  "_release": "0.0.8",
   "_resolution": {
     "type": "version",
-    "tag": "v0.0.7",
-    "commit": "3f2ab5cdfeb522a00bcb975a3207c1595dbc76f1"
+    "tag": "v0.0.8",
+    "commit": "6b46500325bb76e94fbcc2be3b3e9211e6645863"
   },
   "_source": "git://github.com/DadaMonad/Yatta.git",
   "_target": "~0.0.7",
-  "_originalSource": "Yatta",
-  "_direct": true
+  "_originalSource": "Yatta"
 }
