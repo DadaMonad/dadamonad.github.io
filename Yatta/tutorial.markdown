@@ -81,8 +81,8 @@ yatta.observe(function(events){
   for(i in events){
     console.log("The following event-type was thrown: "+events[i].type)
     console.log("The event was executed on: "+events[i].name)
-    console.log("This is the old value: "+events[i].oldValue)
-    console.log("This is the new value: "+events[i].object)
+    console.log("The event object has more information:")
+    console.log(events[i])
   }
 })
 {% endhighlight %}
