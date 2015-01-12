@@ -14,5 +14,9 @@
     "bower_components",
     "test",
     "tests"
-  ]
+  ],
+  "dependencies": {
+    "Yatta": "~0.0.7",
+    "Yatta-Connectors": "DadaMonad/Yatta-Connectors#~0.0.8"
+  }
 }

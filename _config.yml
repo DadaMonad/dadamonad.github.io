@@ -1,4 +1,4 @@
-# Harmony Jekyll theme general configurations 
+# Harmony Jekyll theme general configurations
 
 # Base URL
 baseurl: "https://dadamonad.github.io/"
@@ -51,6 +51,8 @@ exclude:
   - .gitignore
   - .sass-cache
   - Gemfile.lock
+  - modules/Yatta/node_modules
+  - modules/Yatta-Connectors/node_modules
 
 # Sass conversion configs
 sass:
