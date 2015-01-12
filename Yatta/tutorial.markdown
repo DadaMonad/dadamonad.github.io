@@ -190,7 +190,7 @@ What do **you** want to see next?
 
 <script src="{{ site.baseurl }}bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.js"></script>
 <script src="{{ site.baseurl }}bower_components/Yatta/yatta.js"></script>
-<link rel="import" href="../elements/elements-showoff.html">
+<link rel="import" href="{{ site.baseurl }}elements/elements-showoff.html">
 
 <!--script>
 var connector = new XMPPConnector("tutorial");

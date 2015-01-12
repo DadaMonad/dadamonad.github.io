@@ -83,6 +83,7 @@ encode_message = (m, json)->
 
 class XMPPConnector extends Connector
   constructor: (room)->
+    @debug = false
     super()
     @xmpp = new XMPP.Client
       jid: '@yatta.ninja'
@@ -100,15 +101,23 @@ class XMPPConnector extends Connector
       # Want to be like this:
       # <presence from='a33b9758-62f8-42e1-a827-83ef04f887c5@yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' to='thing@conference.yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' xmlns='jabber:client'>
       # <x xmlns='http://jabber.org/protocol/muc'/></presence>
-      that.room = room + "@conference.yatta.ninja"
-      that.room_jid = that.room + "/" + that.xmpp.jid.resource
-      that.id = that.xmpp.jid.resource
-      for f in that.when_user_id_set
-        f(that.id)
-      room_subscription = new ltx.Element 'presence',
-          to: that.room_jid
-        .c 'x', {}
-      that.xmpp.send room_subscription
+      subscribeToRoom = ()->
+        that.room = room + "@conference.yatta.ninja"
+        that.room_jid = that.room + "/" + that.xmpp.jid.resource
+        that.id = that.xmpp.jid.resource
+        for f in that.when_user_id_set
+          f(that.id)
+        room_subscription = new ltx.Element 'presence',
+            to: that.room_jid
+          .c 'x', {}
+        that.xmpp.send room_subscription
+
+      if that.sync_process_order.length is 0
+        # the connector has not yet been bound to a Yatta type
+        # This can happen in the tutorial
+        that._whenBoundToYatta = subscribeToRoom
+      else
+        subscribeToRoom()
 
     @xmpp.on 'stanza', (stanza)->
       sender = stanza.getAttribute "from"
@@ -119,6 +128,8 @@ class XMPPConnector extends Connector
           if that.role is "moderator"
             # this client created this room, therefore there is (should be) nobody to sync to
             that.is_synced = true
+            for f in that.compute_when_synced
+              f()
         else if stanza.getAttribute("type") is "unavailable"
           delete that.connections[extract_resource_from_jid sender]
         else
@@ -156,7 +167,8 @@ class XMPPConnector extends Connector
               that.is_synced = true
               for f in that.compute_when_synced
                 f()
-      console.log "RECEIVED: "+stanza.toString()
+      if that.debug
+        console.log "RECEIVED: "+stanza.toString()
 
   _send: (user, json, type)->
     # do not send yatta-operations if not synced,
@@ -168,7 +180,8 @@ class XMPPConnector extends Connector
         to: user
         type: if type? then type else "chat"
       message = encode_message(m, json)
-      console.log "SENDING: "+message.toString()
+      if @debug
+        console.log "SENDING: "+message.toString()
       @xmpp.send message
 
   _broadcast: (json)->

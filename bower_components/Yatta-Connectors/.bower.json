@@ -1,6 +1,5 @@
 {
   "name": "Yatta-Connectors",
-  "version": "0.0.8",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
   ],
@@ -32,14 +31,14 @@
     "node-xmpp-client": "v1.0.0-alpha19"
   },
   "homepage": "https://github.com/DadaMonad/Yatta-Connectors",
-  "_release": "0.0.8",
+  "_release": "v0.0.8a",
   "_resolution": {
-    "type": "version",
-    "tag": "v0.0.8",
-    "commit": "b6b7d380023af8de57856a74114055563c1cc823"
+    "type": "tag",
+    "tag": "v0.0.8a",
+    "commit": "eea64e04b76337e1a30bfbd2180fb26286c669e9"
   },
   "_source": "git://github.com/DadaMonad/Yatta-Connectors.git",
-  "_target": "~0.0.8",
+  "_target": "v0.0.8a",
   "_originalSource": "DadaMonad/Yatta-Connectors",
   "_direct": true
 }
