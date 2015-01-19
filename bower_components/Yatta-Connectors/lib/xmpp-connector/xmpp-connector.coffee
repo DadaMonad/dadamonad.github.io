@@ -82,23 +82,13 @@ encode_message = (m, json)->
 
 
 class XMPPConnector extends Connector
-  constructor: (room, opts)->
-    if opts? and opts.server? and opts.server
-      creds =
-        jid: opts.user
-        password: opts.password
-        host: "yatta.ninja"
-    else
-      creds =
-        jid: '@yatta.ninja'
-        preferred: "ANONYMOUS"
-        websocket:
-          url: 'wss:yatta.ninja:5281/xmpp-websocket'
-
-    @xmpp = new XMPP.Client creds
-
-    @debug = false
+  constructor: (room)->
     super()
+    @xmpp = new XMPP.Client
+      jid: '@yatta.ninja'
+      preferred: "ANONYMOUS"
+      websocket:
+        url: 'wss:yatta.ninja:5281/xmpp-websocket'
 
     @_is_server = true
     @is_syncing = false
@@ -110,23 +100,15 @@ class XMPPConnector extends Connector
       # Want to be like this:
       # <presence from='a33b9758-62f8-42e1-a827-83ef04f887c5@yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' to='thing@conference.yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' xmlns='jabber:client'>
       # <x xmlns='http://jabber.org/protocol/muc'/></presence>
-      subscribeToRoom = ()->
-        that.room = room + "@conference.yatta.ninja"
-        that.room_jid = that.room + "/" + that.xmpp.jid.resource
-        that.id = that.xmpp.jid.resource
-        for f in that.when_user_id_set
-          f(that.id)
-        room_subscription = new ltx.Element 'presence',
-            to: that.room_jid
-          .c 'x', {}
-        that.xmpp.send room_subscription
-
-      if not that.getHB?
-        # the connector has not yet been bound to a Yatta type
-        # This can happen in the tutorial
-        that._whenBoundToYatta = subscribeToRoom
-      else
-        subscribeToRoom()
+      that.room = room + "@conference.yatta.ninja"
+      that.room_jid = that.room + "/" + that.xmpp.jid.resource
+      that.id = that.xmpp.jid.resource
+      for f in that.when_user_id_set
+        f(that.id)
+      room_subscription = new ltx.Element 'presence',
+          to: that.room_jid
+        .c 'x', {}
+      that.xmpp.send room_subscription
 
     @xmpp.on 'stanza', (stanza)->
       sender = stanza.getAttribute "from"
@@ -137,8 +119,6 @@ class XMPPConnector extends Connector
           if that.role is "moderator"
             # this client created this room, therefore there is (should be) nobody to sync to
             that.is_synced = true
-            for f in that.compute_when_synced
-              f()
         else if stanza.getAttribute("type") is "unavailable"
           delete that.connections[extract_resource_from_jid sender]
         else
@@ -158,42 +138,25 @@ class XMPPConnector extends Connector
             for f in that.receive_handlers
               f sender, res
           else
-            if res.sync_step is "getHB"
-              data = that.getHB([])
-              hb = data.hb
-              _hb = []
-              for o in hb
-                _hb.push o
-                if _hb.length > 30
-                  that._send sender,
-                    sync_step: "applyHB_"
-                    data: _hb
-                  _hb = []
+            data = that.sync_process_order[res.sync_step+1](res.data)
+            if res.sync_step + 2 < that.sync_process_order.length
               that._send sender,
-                sync_step: "applyHB"
-                data: _hb
+                sync_step: res.sync_step + 1
+                data: data
               if res.send_again?
-                send_again = do (sv = data.state_vector)->
+                send_again = do (old_data = data, sync_step = res.sync_step)->
                   ()->
-                    hb = that.getHB(sv).hb
+                    data = that.sync_process_order[res.sync_step+1](data.state_vector)
                     that._send sender,
-                      sync_step: "applyHB",
-                      data: hb
+                      sync_step: sync_step + 1
+                      data: data
                       sent_again: "true"
                 setTimeout send_again, 3000
-            else if res.sync_step is "applyHB"
-              that.applyHB(res.data)
-
-              if res.sent_again? and not that.is_synced
-                that.is_synced = true
-                for f in that.compute_when_synced
-                  f()
-            else if res.sync_step is "applyHB_"
-              that.applyHB(res.data)
-
-
-      if that.debug
-        console.log "RECEIVED: "+stanza.toString()
+            if res.sent_again? and not that.is_synced
+              that.is_synced = true
+              for f in that.compute_when_synced
+                f()
+      console.log "RECEIVED: "+stanza.toString()
 
   _send: (user, json, type)->
     # do not send yatta-operations if not synced,
@@ -205,8 +168,7 @@ class XMPPConnector extends Connector
         to: user
         type: if type? then type else "chat"
       message = encode_message(m, json)
-      if @debug
-        console.log "SENDING: "+message.toString()
+      console.log "SENDING: "+message.toString()
       @xmpp.send message
 
   _broadcast: (json)->
@@ -218,21 +180,13 @@ class XMPPConnector extends Connector
     if not @is_syncing
       @is_syncing = true
       @_send user,
-        sync_step: "getHB"
+        sync_step: @sync_process_order.length-3
         send_again: "true"
         data: []
-      hb = @getHB([]).hb
-      _hb = []
-      for o in hb
-        _hb.push o
-        if _hb.length > 30
-          @_broadcast
-            sync_step: "applyHB_"
-            data: _hb
-          _hb = []
+
       @_broadcast
-        sync_step: "applyHB"
-        data: _hb
+        sync_step: @sync_process_order.length-2
+        data: @sync_process_order[@sync_process_order.length-2]([])
 
 if module.exports?
   module.exports = XMPPConnector

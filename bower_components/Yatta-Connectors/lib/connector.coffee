@@ -27,12 +27,10 @@ class Connector
   # @param f {Function} Will be executed on the PeerJs-Connector context.
   #
   whenSynced: (args)->
-    if args.constructore is Function
-      args = [args]
     if @is_synced
       args[0].apply this, args[1..]
     else
-      @compute_when_synced.push args
+      @compute_when_synced.push args 
   
   #
   # Execute an function _when_ a message is received.

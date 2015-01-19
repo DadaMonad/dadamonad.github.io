@@ -16,7 +16,7 @@
     "tests"
   ],
   "dependencies": {
-    "Yatta": "~0.0.7",
+    "Yatta": "rwth-acis/Yatta#~0.1.0",
     "Yatta-Connectors": "DadaMonad/Yatta-Connectors#~0.0.8"
   },
   "devDependencies": {
