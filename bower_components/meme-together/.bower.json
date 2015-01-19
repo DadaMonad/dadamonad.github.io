@@ -1,0 +1,37 @@
+{
+  "name": "meme-together",
+  "version": "0.0.1",
+  "authors": [
+    "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
+  ],
+  "description": "Collaborative Meme Creator",
+  "main": "meme-together.html",
+  "keywords": [
+    "meme",
+    "yatta",
+    "collaborative"
+  ],
+  "license": "MIT",
+  "homepage": "https://dadamonad.github.io/",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "../"
+  ],
+  "dependencies": {
+    "paper-elements": "Polymer/paper-elements#~0.5.2"
+  },
+  "_release": "0.0.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.0.1",
+    "commit": "3a179c35f04687e5cb727c4b0661064cee38a164"
+  },
+  "_source": "git://github.com/DadaMonad/meme-together.git",
+  "_target": "~0.0.1",
+  "_originalSource": "DadaMonad/meme-together",
+  "_direct": true
+}
