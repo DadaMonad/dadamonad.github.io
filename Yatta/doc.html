@@ -1,0 +1,251 @@
+---
+layout: yatta-page
+title: Documentation
+permalink: /Yatta/doc/
+
+---
+<link rel="import" href="../../bower_components/core-icons/core-icons.html">
+<style>
+.foldable {
+  display: block;
+  margin: .6em;
+  padding: .7em;
+  background-color: #f0f0f0;
+  box-shadow: 0 .4em .5em 0 rgba(0, 0, 0, 0.24);
+  width: 100%;
+}
+.foldable > h2 {
+  font-size: 1.5em;
+}
+.foldable.folded > p {
+  margin-bottom: .2em;
+}
+
+.foldable.folded .fold {
+  display: none;
+}
+
+.foldable > .head {
+  position: relative;
+}
+
+.foldable:hover {
+  background-color: #f5f5f5;
+}
+
+.foldable > .head > core-icon {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+</style>
+
+<script>
+window.onload = function(){
+  var fs = document.querySelectorAll(".foldable > .head");
+  for(var i = 0; i< fs.length; i++){
+    fs[i].onclick = function(){
+      this.parentElement.classList.toggle("folded");
+    }
+  }
+
+}
+</script>
+
+
+<div class="foldable folded">
+  <div class="head">
+    <h2>XMPP-Connector</h2>
+    <p> Connect your devices with XMPP. </p>
+    <core-icon icon="more-vert"></core-icon>
+  </div>
+
+
+  <div class="fold">
+    <p>
+    XMPP is a very nice choice as a Connector, because it provides already a lot of functionality, and is very reliable.
+    </p>
+    <ul>
+    <li> Can act as a Connector for thousands of users </li>
+    <li> Sophisticated Rights Management </li>
+    <li> </li>
+    </ul>
+
+    <p>
+    We provide you with a free XMPP server. Therefore, you can use this connector right away, with very litte configuration. In production, however, you should install your own XMPP server.
+    </p>
+
+    <p>
+    The XMPP-Connector joins an XMPP multi-user-chat. If the room does not exist yet, the Connector will create it first. Note: the first user who joins the room, will be the <i>moderator</i>. Every user that joins the room hereinafter, syncs with the moderator first, and henceforth publish changes to the XMPP multi-user-chat. Therefore, you must assure that there is always a moderator in the room. When you use the XMPP-Connector with our server, the room will be deleted when all users leave the room.
+    </p>
+    <p>
+    In production, you may want to implement a server (in Node.js), that holds the state of your shared data types, even when all users are disconnected. You can find such a server implementation <a href="https://github.com/DadaMonad/meme-together/blob/master/server.js">here</a>.
+    </p>
+
+    <p>
+    When testing without server: The users wont synchronize when the moderator is offline. So you have to disconnect all clients that are currently in the room, and then the first user that joins the empty room is the moderator again.
+    </p>
+
+    <h5> Install with NPM </h5>
+    {% highlight bash %}
+      nmp install --save Yatta-Connectors
+    {% endhighlight %}
+
+    {% highlight javascript %}
+      var XMPPConnector = require('Yatta-Connectors').XMPPConnector;
+    {% endhighlight %}
+
+    <h5>Install with Bower</h5>
+    {% highlight bash %}
+      bower install --save Yatta-Connectors
+    {% endhighlight %}
+
+    Import either as a script file
+    {% highlight html %}
+    <script
+      src='./bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.js'>
+    </script>
+    {% endhighlight %}
+
+    or as an npm module
+
+    {% highlight javascript %}
+    var XMPPConnector =
+      require('./bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.js');
+    {% endhighlight %}
+
+    <h5> Configure </h5>
+    {% highlight javascript %}
+    var connector = XMPPConnector("room-name", options)
+    {% endhighlight %}
+
+    The options object can have the following properties:
+    <dl>
+      <dt>user (optional)</dt>
+      <dd>If you don't specify login credentials, the XMPP-Connector will connect as a anonymous user. It is your choice to configure the XMPP room in such a way that only registered users, are able to join the multi-user-chat.</dd>
+      <dt>password (optional)</dt>
+      <dd>Login password</dd>
+      <dt>host (only for Node.js)</dt>
+      <dd>If you connect as a Node.js server, then you must set the host property to the domain of your server.</dd>
+      <dt>port (only for Node.js)</dt>
+      <dd>Port, if you connect as Node.js server.</dd>
+      <dt>websocket (optional)</dt>
+      <dd>Websocket connection endpoint. E.g. 'wss:yatta.ninja:5281/xmpp-websocket'. Set this if you don't want to connect to the provided XMPP endpoint</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="foldable folded">
+  <div class="head">
+    <h2> Yatta </h2>
+    <p> Create the Yatta Object </p>
+    <core-icon icon="more-vert"></core-icon>
+  </div>
+
+  <div class="fold">
+    <h5> Install with NPM </h5>
+    {% highlight bash %}
+      nmp install --save Yatta
+    {% endhighlight %}
+
+    {% highlight javascript %}
+      var Yatta = require('Yatta');
+    {% endhighlight %}
+
+    <h5>Install with Bower</h5>
+    {% highlight bash %}
+      bower install --save Yatta
+    {% endhighlight %}
+
+    Import either as a script file
+    {% highlight html %}
+    <script src='./bower_components/yatta/yatta.js'></script>
+    {% endhighlight %}
+
+    or as an npm module
+
+    {% highlight javascript %}
+    var Yatta = require('./bower_components/Yatta/yatta.js');
+    {% endhighlight %}
+
+    <h5> Initialize </h5>
+    {% highlight javascript %}
+    var yatta = new Yatta(connector);
+    {% endhighlight %}
+  </div>
+</div>
+
+<div class="foldable folded">
+  <div class="head">
+    <h2> Collaborative Object Type </h2>
+    <p> <i>Add</i>, <i>delete</i>, and <i>observe</i> with Yatta Objects. </p>
+    <core-icon icon="more-vert"></core-icon>
+  </div>
+
+  <div class="fold">
+    <h5> Create </h5>
+    The yatta object is actually of type Object Type. So you can add, delete, and observe to changes on it.
+
+{% highlight javascript %}
+// create a Object Type on the `yatta` object.
+var o = yatta.val("new_object",{});
+{% endhighlight %}
+
+<h5>Add</h5>
+{% highlight javascript %}
+// add a new inmutable property
+o.val("four",4)
+// retrieve the "four" property
+console.log(o.val("four")) // => 4
+// retrieve all properies of the yatta object
+console.log(yatta.val()) // => {new_object: Object }
+{% endhighlight %}
+
+<h5>Delete</h5>
+{% highlight javascript %}
+// delete a property
+o.delete("four")
+// retrieve the "four" property
+console.log(o.val("four")) // => undefined
+// retrieve all properies of the o object
+console.log(o.val()) // => { }
+{% endhighlight %}
+
+<h5>Observe</h5>
+<p>
+Every type in Yatta has its own bunch of events, to that you can listen to. All Object Types can throw <i>add</i>, <i>update</i>, and <i>delete</i> events. The observe pattern in Yatta is very similar to Object.observe, an upcoming ECMAScript standard for observing changes on Javascript objects.
+</p>
+{% highlight javascript %}
+// create an observer function
+observer = function(events){
+  for(var i in events){
+    console.log("The following event-type was thrown: "+events[i].type)
+    console.log("The event was executed on: "+events[i].name)
+    console.log("The event object has more information:")
+    console.log(events[i])
+  }
+}
+o.observe(observer)
+{% endhighlight %}
+
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
