@@ -13,12 +13,18 @@ permalink: /Yatta/doc/
   background-color: #f0f0f0;
   box-shadow: 0 .4em .5em 0 rgba(0, 0, 0, 0.24);
   width: 100%;
+  overflow: hidden;
 }
+
 .foldable > h2 {
   font-size: 1.5em;
 }
 .foldable.folded > p {
   margin-bottom: .2em;
+}
+
+.foldable .fold {
+
 }
 
 .foldable.folded .fold {
@@ -64,12 +70,13 @@ window.onload = function(){
 
   <div class="fold">
     <p>
-    XMPP is a very nice choice as a Connector, because it provides already a lot of functionality, and is very reliable.
+    XMPP is a very nice choice as a Connector, because it provides already a lot of functionality.
     </p>
     <ul>
-    <li> Can act as a Connector for thousands of users </li>
-    <li> Sophisticated Rights Management </li>
-    <li> </li>
+      <li> Can act as a Connector for thousands of users </li>
+      <li> Sophisticated Rights Management </li>
+      <li> Very reliable </li>
+      <li> Federated </li>
     </ul>
 
     <p>
@@ -139,11 +146,14 @@ window.onload = function(){
 <div class="foldable folded">
   <div class="head">
     <h2> Yatta </h2>
-    <p> Create the Yatta Object </p>
+    <p> Create a Yatta Object </p>
     <core-icon icon="more-vert"></core-icon>
   </div>
 
   <div class="fold">
+    <p>
+    The Yatta Object is the object that holds all your shared data types. We make sure, that every user eventually ends up with the same Yatta Object. 
+    </p>
     <h5> Install with NPM </h5>
     {% highlight bash %}
       nmp install --save Yatta
@@ -170,6 +180,7 @@ window.onload = function(){
     {% endhighlight %}
 
     <h5> Initialize </h5>
+    <p> In order to initialize a Yatta Object, you have to specify a connector first.</p>
     {% highlight javascript %}
     var yatta = new Yatta(connector);
     {% endhighlight %}
@@ -178,18 +189,38 @@ window.onload = function(){
 
 <div class="foldable folded">
   <div class="head">
-    <h2> Collaborative Object Type </h2>
-    <p> <i>Add</i>, <i>delete</i>, and <i>observe</i> with Yatta Objects. </p>
+    <h2> Object Type </h2>
+    <p> <i>Add</i>, <i>delete</i>, and <i>observe</i> </p>
     <core-icon icon="more-vert"></core-icon>
   </div>
 
   <div class="fold">
+    <h5> Reference </h5>
+    <dl>
+      <dt> .val() </dt>
+      <dd> Retrieve all properties of the Yatta Object in a Json Object.</dd>
+      <dt> .val(name)</dt>
+      <dd> Retrieve the value of property <i>name</i> </dd>
+      <dt> .val(name, value)</dt>
+      <dd> Update/Set property <i>name</i> to an immutable <i>value</i> </dd>
+      <dt> .val(name, o, "mutable")</dt>
+      <dd> Update/Set property <i>name</i> to an mutable <i>value</i> </dd>
+      <dt> .delete(name) </dt>
+      <dd> Delete the value of property <i>name</i></dd>
+      <dt> .observe(observer)</dt>
+      <dd> <i>observer</i> is called whenever something on this object changed. (throws <i>add</i>, <i>update</i>, and <i>delete</i> events)</dd>
+      <dt> .type </dt>
+      <dd> "Object" </dd>
+    </dl>
+
     <h5> Create </h5>
-    The yatta object is actually of type Object Type. So you can add, delete, and observe to changes on it.
+    The Yatta object is actually of type Object Type. So everything you find here, applies also for the yatta object.
 
 {% highlight javascript %}
 // create a Object Type on the `yatta` object.
 var o = yatta.val("new_object",{});
+console.log(o.type) // => "Object"
+console.log(o instanceof yatta.types.Object) // => true
 {% endhighlight %}
 
 <h5>Add</h5>
@@ -198,7 +229,7 @@ var o = yatta.val("new_object",{});
 o.val("four",4)
 // retrieve the "four" property
 console.log(o.val("four")) // => 4
-// retrieve all properies of the yatta object
+// retrieve all properies of the yatta object as a json Object
 console.log(yatta.val()) // => {new_object: Object }
 {% endhighlight %}
 
@@ -214,13 +245,14 @@ console.log(o.val()) // => { }
 
 <h5>Observe</h5>
 <p>
-Every type in Yatta has its own bunch of events, to that you can listen to. All Object Types can throw <i>add</i>, <i>update</i>, and <i>delete</i> events. The observe pattern in Yatta is very similar to Object.observe, an upcoming ECMAScript standard for observing changes on Javascript objects.
+Every type in Yatta has its own bunch of events to that you can listen to. All Object Types can throw <i>add</i>, <i>update</i>, and <i>delete</i> events. The observe pattern in Yatta is very similar to Object.observe, an upcoming ECMAScript standard for observing changes on Javascript objects.
 </p>
 {% highlight javascript %}
 // create an observer function
 observer = function(events){
   for(var i in events){
     console.log("The following event-type was thrown: "+events[i].type)
+    console.log("The element was changed by: "+events[i].changedBy)
     console.log("The event was executed on: "+events[i].name)
     console.log("The event object has more information:")
     console.log(events[i])
@@ -232,6 +264,202 @@ o.observe(observer)
   </div>
 </div>
 
+<div class="foldable folded">
+  <div class="head">
+    <h2> String Type </h2>
+    <p> <i>Insert</i>, <i>delete</i>, <i>observe</i>, and <i>bind</i> </p>
+    <core-icon icon="more-vert"></core-icon>
+  </div>
+
+  <div class="fold">
+    <h5> Reference </h5>
+    <dl>
+      <dt> .val() </dt>
+      <dd> Retrieve the current value as a String </dd>
+      <dt> .val(i)</dt>
+      <dd> Retrieve the value of <i>i</i>-th character </dd>
+      <dt> .insert(position, string) </dt>
+      <dd> Insert a String at a position </dd>
+      <dt> .delete(position, length) </dt>
+      <dd> Delete <i>length</i> characters, starting at position <i>position</i></dd>
+      <dt> .observe(observer)</dt>
+      <dd> <i>observer</i> is called whenever something on this object changed. (throws <i>insert</i>, and <i>delete</i> events)</dd>
+      <dt> bind(dom_element)</dt>
+      <dd> Bind the value of this String type to a dom element. (<a href="https://developer.mozilla.org/en/docs/Web/HTML/Element/textarea">textareas</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input">input elements</a>, and <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/contenteditable">contentEditable</a> dom elements are supported)</dd>
+      <dt> .type </dt>
+      <dd> "String" </dd>
+    </dl>
+  
+    <h5> Create </h5>
+
+{% highlight javascript %}
+// create a mutable String Type on any Object type
+yatta.val("mutable_string","mutable string", "mutable")
+// If you don't set the third parameter, you create a "immutable" String,
+// which conforms with the browser implementation of the type String.
+// Insert and delete operations are not possible on "immutable" Strings.
+yatta.val("immutable_string","immutable string")
+
+var mutable = yatta.val("mutable_string");
+var immutable = yatta.val("immutable_string");
+
+console.log(immutable) // => "immutable string"
+console.log(mutable) // => "[Object]"
+console.log(mutable.val()) // => "mutable string"
+
+console.log(mutable.type) // => "String"
+console.log(mutable instanceof yatta.types.String) // => true
+console.log(immutable instanceof String) // => true
+{% endhighlight %}
+
+<h5>Insert</h5>
+{% highlight javascript %}
+// Insert a string at a position
+mutable.insert(0, "my ")
+console.log(mutable.val()) // => "my mutable string"
+{% endhighlight %}
+
+<h5>Delete</h5>
+{% highlight javascript %}
+// delete the first 3 characters
+mutable.delete(0, 3)
+console.log(mutable.val()) // => "mutable string"
+{% endhighlight %}
+
+<h5>Observe</h5>
+<p>
+Every type in Yatta has its own bunch of events, to that you can listen to. All String Types can throw <i>insert</i>, and <i>delete</i> events.
+</p>
+{% highlight javascript %}
+// create an observer function
+observer = function(events){
+  for(var i in events){
+    console.log("The following event-type was thrown: "+events[i].type)
+    console.log("The element was changed by: "+events[i].changedBy)
+    console.log("It was exectuted on position: "+events[i].position)
+    console.log("The event object has more information:")
+    console.log(events[i])
+  }
+}
+mutable.observe(observer)
+
+{% endhighlight %}
+
+<h5>Bind</h5>
+<p>
+You can bind String Types to HTML <a href="https://developer.mozilla.org/en/docs/Web/HTML/Element/textarea">Textareas</a>, HTML <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input">input elements</a>, and any HTML element, that has the <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/contenteditable">contentEditable attribute</a> activated. When you bind a mutable String to a dom element, the content of the String is updated, when the dom element changes, and vice versa.
+</p>
+{% highlight html %}
+<input type="text" />
+<!-- set contentEditable, to make the headline editable in your browser. Optionally you can disable spellcheck. -->
+<h1 contentEditable spellcheck="false">My editable headline</h1>
+{% endhighlight %}
+
+{% highlight javascript %}
+// bind the input element
+var input = document.querySelector("input");
+mutable.bind(input);
+
+// bind the headline element
+var h = document.querySelector("h1");
+mutable.bind(h);
+
+{% endhighlight %}
+
+Note: Please make sure, that the element that you bint the String to, does only contain text (no DOM elements).
+
+  </div>
+</div>
+
+<div class="foldable folded">
+  <div class="head">
+    <h2> Array Type </h2>
+    <p> <i>Insert</i>, <i>delete</i>, and <i>observe</i></p>
+    <core-icon icon="more-vert"></core-icon>
+  </div>
+
+  <div class="fold">
+    <h5> Reference </h5>
+    <dl>
+      <dt> .val() </dt>
+      <dd> Retrieve the current value as an Array </dd>
+      <dt> .val(i)</dt>
+      <dd> Retrieve the value of <i>i</i>-th element in the list </dd>
+      <dt> .insert(position, o) </dt>
+      <dd> Insert a immutable object at a position </dd>
+      <dt> .insert(position, o, "mutable")</dt>
+      <dd> Insert a mutable object at a position </dd>
+      <dt> .delete(position, length) </dt>
+      <dd> Delete <i>length</i> elements, starting at position <i>position</i></dd>
+      <dt> .observe(observer)</dt>
+      <dd> <i>observer</i> is called whenever something on this object changed. (throws <i>insert</i>, and <i>delete</i> events)</dd>
+      <dt> .bind(dom_element)</dt>
+      <dd> Bind the value of this String type to a dom element. (<a href="https://developer.mozilla.org/en/docs/Web/HTML/Element/textarea">textareas</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input">input elements</a>, and <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/contenteditable">contentEditable</a> dom elements are supported)</dd>
+      <dt> .type </dt>
+      <dd> "String" </dd>
+    </dl>
+  
+  
+    <p> This type is very similar to the String type.</p>
+    <h5> Create </h5>
+
+{% highlight javascript %}
+// create a mutable String Type on any Object type
+yatta.val("mutable_array", [1,2,3], "mutable")
+// If you don't set the third parameter, you create a "immutable" Array,
+// which conforms with the browser implementation of the type Array.
+// Insert and delete operations are not possible on "immutable" Arrays.
+yatta.val("immutable_string",[1,2,3])
+
+var mutable = yatta.val("mutable_array");
+var immutable = yatta.val("immutable_array");
+
+console.log(immutable) // => [1,2,3]
+console.log(mutable) // => "[Object]"
+console.log(mutable.val()) // => [1,2,3]
+
+console.log(mutable.type) // => "Array"
+console.log(mutable instanceof yatta.types.Array) // => true
+console.log(immutable instanceof Array) // => true
+{% endhighlight %}
+
+<h5>Insert</h5>
+{% highlight javascript %}
+// Insert "four" at a position 3
+mutable.insert(3, "five")
+// Insert a mutable object at position 3
+mutable.insert(3, "four", "mutable")
+console.log(mutable.val()) // => [1,2,3,"[Object]","four"]
+{% endhighlight %}
+
+<h5>Delete</h5>
+{% highlight javascript %}
+// delete the first 4 elements in the list
+mutable.delete(0, 4)
+console.log(mutable.val()) // => ["four"]
+{% endhighlight %}
+
+<h5>Observe</h5>
+<p>
+Every type in Yatta has its own bunch of events, to that you can listen to. All String Types can throw <i>insert</i>, and <i>delete</i> events.
+</p>
+{% highlight javascript %}
+// create an observer function
+observer = function(events){
+  for(var i in events){
+    console.log("The following event-type was thrown: "+events[i].type)
+    console.log("The element was changed by: "+events[i].changedBy)
+    console.log("It was exectuted on position: "+events[i].position)
+    console.log("The event object has more information:")
+    console.log(events[i])
+  }
+}
+mutable.observe(observer)
+
+{% endhighlight %}
+
+  </div>
+</div>
 
 
 
