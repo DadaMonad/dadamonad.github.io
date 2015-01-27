@@ -4,12 +4,12 @@ title: Tutorial
 permalink: /yjs/tutorial/
 ---
 
-This tutorial will give you a good idea on how you can work with yjs. Check the [documentation](./doc/) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](./examples/).
+This tutorial will give you a good idea on how you can work with Yjs. Check the [documentation](./doc/) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](./examples/).
 
 Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples you find here. If you have any problem, ask a question in the comments section at the bottom of this page.
 
 ### y-connectors
-First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A connector basically connects your client with each other. The cool thing in yjs is that you can simply interchange different connectors. So you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. You find a bunch of connectors in the [y-connector](https://github.com/rwth-acis/y-connectors) repository. And it is possible to define your own connectors, too. Here, we create an XMPP connector:
+First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A connector basically connects your client with each other. The cool thing in Yjs is that you can simply interchange different connectors. So you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. You find a bunch of connectors in the [y-connector](https://github.com/rwth-acis/y-connectors) repository. And it is possible to define your own connectors, too. Here, we create an XMPP connector:
 
 {% highlight html %}
 <script src="./path-to-library/y-xmpp.min.js"></script>
@@ -24,7 +24,7 @@ The XMPP connector communicates through a multi-user-chat room. The first connec
 #####  Tips:
 
 * Try to pick a random room name, so that it does not collide with another users room name. E.g. "efkdyjd0" - you can generate random room names like this: `(Math.random()+1).toString(36).substring(10)`
-* In production, the first connector who logs into the chat room could be some server that manages state. It is easy to set up a nodejs server with yjs.
+* In production, the first connector who logs into the chat room could be some server that manages state. It is easy to set up a nodejs server with Yjs.
 * You get the *ids* of all connected users with `connector.connections`. (works only *after* you bound the connector to an instance of Y)
 
 ##### Try it
@@ -74,7 +74,7 @@ y.delete("object")
 {% endhighlight %}
 
 ##### Observe Changes
-Every type has its own bunch of events, to that you can listen to. All ObjectTypes can throw *add*, *update*, and *delete* events. The observe pattern in yjs is very similar to [Object.observe](http://www.html5rocks.com/en/tutorials/es7/observe/?redirect_from_locale=de), an upcoming standard for observing changes on Javascript objects.
+Every type has its own bunch of events, to that you can listen to. All ObjectTypes can throw *add*, *update*, and *delete* events. The observe pattern in Yjs is very similar to [Object.observe](http://www.html5rocks.com/en/tutorials/es7/observe/?redirect_from_locale=de), an upcoming standard for observing changes on Javascript objects.
 
 {% highlight javascript %}
 y.observe(function(events){
@@ -120,13 +120,13 @@ Now, the *mutable\_string* is bound to the *textarea*. This means that the *muta
 
 ### Polymer Elements
 
-I want to make yjs as easy as possible. When I [stumbled upon Polymer](https://plus.google.com/110297010634240861782/posts/FireNaHeDB6), I was amazed how it can be to create complex applications with just a few linew of code.
+I want to make Yjs as easy as possible. When I [stumbled upon Polymer](https://plus.google.com/110297010634240861782/posts/FireNaHeDB6), I was amazed how it can be to create complex applications with just a few linew of code.
 
 <!--div align="center">
 <iframe width="560" style="max-width:100%" height="315" src="//www.youtube.com/embed/svfu9iQ8cyg" frameborder="0" allowfullscreen></iframe>
 </div-->
 
-yjs as a *custom element* makes building collaborative applications _sooo_ easy. Just bind your shared values to the elements that you want to make collaborative.
+Yjs as a *custom element* makes building collaborative applications _sooo_ easy. Just bind your shared values to the elements that you want to make collaborative.
 
 
 {% highlight html %}

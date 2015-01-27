@@ -14,7 +14,10 @@
 </ul>
 
 {% if page.title-picture %}
-<div style='background:url({{page.title-picture | prepend: site.baseurl |prepend: site.url }}) no-repeat center center;width:100%;height:190px;text-align:center'></div>
+
+<div style="position: relative; width: 100%; height: 5em; margin: 1em 0 1em 0">
+  <img src="{{page.title-picture | prepend: site.baseurl |prepend: site.url }}" style="height: 5em; position: absolute; margin: 0; left: 50%; bottom: 0; margin-right: -50%; transform: translate(-50%)" />
+</div>
 {% endif %}
 {% if page.page-urls %}
 <ul>
