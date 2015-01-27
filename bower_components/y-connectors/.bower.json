@@ -1,0 +1,41 @@
+{
+  "name": "y-connectors",
+  "version": "0.3.0",
+  "authors": [
+    "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
+  ],
+  "description": "Connect to other users via a generic connector. The interface is standardized, so you can use other connectors without changing your code.",
+  "main": [
+    "./y-xmpp/y-xmpp.js",
+    "./y-xmpp/y-xmpp.html",
+    "./build/node/y-xmpp/y-xmpp.js"
+  ],
+  "moduleType": [
+    "globals",
+    "node"
+  ],
+  "keywords": [
+    "peerjs",
+    "xmpp"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "test",
+    "tests"
+  ],
+  "dependencies": {},
+  "resolutions": {},
+  "homepage": "https://github.com/rwth-acis/y-connectors",
+  "_release": "0.3.0",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.3.0",
+    "commit": "4bd8d4221420a89d408590e1eec15e2c32697dc9"
+  },
+  "_source": "git://github.com/rwth-acis/y-connectors.git",
+  "_target": "~0.3.0",
+  "_originalSource": "rwth-acis/y-connectors",
+  "_direct": true
+}

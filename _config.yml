@@ -10,9 +10,9 @@ url: ""
 harmony:
   name: "DadaMonad's Blog"
   # Little description about your site
-  description: Web, OT, Yatta, Polymer and other stuff
+  description: Web, OT, yjs, Polymer and other stuff
   meta_description: > # 
-   Blog about my development on Yatta and real-time web applications
+   Blog about my development on yjs and real-time web applications
   basetheme: theme-base-01 # pre defined thmes are darken, blue-water, redish.
   author:
     name: Kevin Jahns
@@ -51,8 +51,9 @@ exclude:
   - .gitignore
   - .sass-cache
   - Gemfile.lock
-  - modules/Yatta/node_modules
-  - modules/Yatta-Connectors/node_modules
+  - modules/yjs/node_modules
+  - modules/y-connectors/node_modules
+  - modules/meme-together/node_modules
 
 # Sass conversion configs
 sass:

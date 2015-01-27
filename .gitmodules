@@ -1,9 +1,3 @@
 [submodule "bower_components/meme-together"]
 	path = bower_components/meme-together
 	url = https://github.com/DadaMonad/meme-together.git
-[submodule "bower_components/Yatta-Connectors"]
-	path = bower_components/Yatta-Connectors
-	url = https://github.com/rwth-acis/Yatta-Connectors.git
-[submodule "bower_components/Yatta"]
-	path = bower_components/Yatta
-	url = https://github.com/rwth-acis/Yatta.git

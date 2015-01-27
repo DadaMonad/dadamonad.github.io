@@ -1,7 +1,7 @@
 ---
-layout: yatta-page
+layout: y-page
 title: Documentation
-permalink: /Yatta/doc/
+permalink: /yjs/doc/
 
 ---
 <link rel="import" href="../../bower_components/core-icons/core-icons.html">
@@ -96,41 +96,41 @@ window.onload = function(){
 
     <h5> Install with NPM </h5>
     {% highlight bash %}
-      nmp install --save Yatta-Connectors
+      nmp install --save y-connectors
     {% endhighlight %}
 
     {% highlight javascript %}
-      var XMPPConnector = require('Yatta-Connectors').XMPPConnector;
+      var Y.XMPP = require('y-connectors').XMPP;
     {% endhighlight %}
 
     <h5>Install with Bower</h5>
     {% highlight bash %}
-      bower install --save Yatta-Connectors
+      bower install --save y-connectors
     {% endhighlight %}
 
     Import either as a script file
     {% highlight html %}
     <script
-      src='./bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.js'>
+      src='./bower_components/y-connectors/y-xmpp/y-xmpp.js'>
     </script>
     {% endhighlight %}
 
     or as an npm module
 
     {% highlight javascript %}
-    var XMPPConnector =
-      require('./bower_components/Yatta-Connectors/xmpp-connector/xmpp-connector.js');
+    var Y.XMPP =
+      require('./bower_components/y-connectors/build/node/y-xmpp/y-xmpp.js');
     {% endhighlight %}
 
     <h5> Configure </h5>
     {% highlight javascript %}
-    var connector = XMPPConnector("room-name", options)
+    var connector = Y.XMPP("room-name", options)
     {% endhighlight %}
 
-    The options object can have the following properties:
+    The options <i>object</i> can have the following properties:
     <dl>
-      <dt>user (optional)</dt>
-      <dd>If you don't specify login credentials, the XMPP-Connector will connect as a anonymous user. It is your choice to configure the XMPP room in such a way that only registered users, are able to join the multi-user-chat.</dd>
+      <dt>jid (optional)</dt>
+      <dd> The users jingle id. If you don't specify login credentials, the XMPP-Connector will connect as a anonymous user. It is your choice to configure the XMPP room in such a way that only registered users, are able to join the multi-user-chat.</dd>
       <dt>password (optional)</dt>
       <dd>Login password</dd>
       <dt>host (only for Node.js)</dt>
@@ -139,50 +139,52 @@ window.onload = function(){
       <dd>Port, if you connect as Node.js server.</dd>
       <dt>websocket (optional)</dt>
       <dd>Websocket connection endpoint. E.g. 'wss:yatta.ninja:5281/xmpp-websocket'. Set this if you don't want to connect to the provided XMPP endpoint</dd>
+      <dt>node_xmpp_client (optional)</dt>
+      <dd>If you want, you can put in here any initialized <a href="https://github.com/node-xmpp/node-xmpp-client">node-xmpp-client</a>. If you specify this parameter, all the other options will be ignored. </dd>
     </dl>
   </div>
 </div>
 
 <div class="foldable folded">
   <div class="head">
-    <h2> Yatta </h2>
-    <p> Create a Yatta Object </p>
+    <h2> Y </h2>
+    <p> Create an Y instance </p>
     <core-icon icon="more-vert"></core-icon>
   </div>
 
   <div class="fold">
     <p>
-    The Yatta Object is the object that holds all your shared data types. We make sure, that every user eventually ends up with the same Yatta Object. 
+    The Y Object is the object that holds all your shared data types. We make sure, that every user eventually ends up with the same Y Object.
     </p>
     <h5> Install with NPM </h5>
     {% highlight bash %}
-      nmp install --save Yatta
+      nmp install --save yjs
     {% endhighlight %}
 
     {% highlight javascript %}
-      var Yatta = require('Yatta');
+      var Y = require('yjs');
     {% endhighlight %}
 
     <h5>Install with Bower</h5>
     {% highlight bash %}
-      bower install --save Yatta
+      bower install --save yjs
     {% endhighlight %}
 
     Import either as a script file
     {% highlight html %}
-    <script src='./bower_components/yatta/yatta.js'></script>
+    <script src='./bower_components/yjs/y.js'></script>
     {% endhighlight %}
 
     or as an npm module
 
     {% highlight javascript %}
-    var Yatta = require('./bower_components/Yatta/yatta.js');
+    var Y = require('./bower_components/yjs/y.js');
     {% endhighlight %}
 
     <h5> Initialize </h5>
-    <p> In order to initialize a Yatta Object, you have to specify a connector first.</p>
+    <p> In order to initialize a Y Object, you have to specify a connector first.</p>
     {% highlight javascript %}
-    var yatta = new Yatta(connector);
+    var y = new Y(connector);
     {% endhighlight %}
   </div>
 </div>
@@ -198,7 +200,7 @@ window.onload = function(){
     <h5> Reference </h5>
     <dl>
       <dt> .val() </dt>
-      <dd> Retrieve all properties of the Yatta Object in a Json Object.</dd>
+      <dd> Retrieve all properties of the Y Object in a Json Object.</dd>
       <dt> .val(name)</dt>
       <dd> Retrieve the value of property <i>name</i> </dd>
       <dt> .val(name, value)</dt>
@@ -214,13 +216,13 @@ window.onload = function(){
     </dl>
 
     <h5> Create </h5>
-    The Yatta object is actually of type Object Type. So everything you find here, applies also for the yatta object.
+    The Y instance is actually of type Object Type. So everything you find here, applies also to it.
 
 {% highlight javascript %}
-// create a Object Type on the `yatta` object.
-var o = yatta.val("new_object",{});
+// create a Object Type on y (an instance of Y)
+var o = y.val("new_object",{});
 console.log(o.type) // => "Object"
-console.log(o instanceof yatta.types.Object) // => true
+console.log(o instanceof y.types.Object) // => true
 {% endhighlight %}
 
 <h5>Add</h5>
@@ -229,8 +231,8 @@ console.log(o instanceof yatta.types.Object) // => true
 o.val("four",4)
 // retrieve the "four" property
 console.log(o.val("four")) // => 4
-// retrieve all properies of the yatta object as a json Object
-console.log(yatta.val()) // => {new_object: Object }
+// retrieve all properies of the y object as a json Object
+console.log(y.val()) // => {new_object: Object }
 {% endhighlight %}
 
 <h5>Delete</h5>
@@ -245,7 +247,7 @@ console.log(o.val()) // => { }
 
 <h5>Observe</h5>
 <p>
-Every type in Yatta has its own bunch of events to that you can listen to. All Object Types can throw <i>add</i>, <i>update</i>, and <i>delete</i> events. The observe pattern in Yatta is very similar to Object.observe, an upcoming ECMAScript standard for observing changes on Javascript objects.
+Every type has its own bunch of events to that you can listen to. All Object Types can throw <i>add</i>, <i>update</i>, and <i>delete</i> events. The observe pattern in yjs is very similar to Object.observe, an upcoming ECMAScript standard for observing changes on Javascript objects.
 </p>
 {% highlight javascript %}
 // create an observer function
@@ -294,21 +296,21 @@ o.observe(observer)
 
 {% highlight javascript %}
 // create a mutable String Type on any Object type
-yatta.val("mutable_string","mutable string", "mutable")
+y.val("mutable_string","mutable string", "mutable")
 // If you don't set the third parameter, you create a "immutable" String,
 // which conforms with the browser implementation of the type String.
 // Insert and delete operations are not possible on "immutable" Strings.
-yatta.val("immutable_string","immutable string")
+y.val("immutable_string","immutable string")
 
-var mutable = yatta.val("mutable_string");
-var immutable = yatta.val("immutable_string");
+var mutable = y.val("mutable_string");
+var immutable = y.val("immutable_string");
 
 console.log(immutable) // => "immutable string"
 console.log(mutable) // => "[Object]"
 console.log(mutable.val()) // => "mutable string"
 
 console.log(mutable.type) // => "String"
-console.log(mutable instanceof yatta.types.String) // => true
+console.log(mutable instanceof y.types.String) // => true
 console.log(immutable instanceof String) // => true
 {% endhighlight %}
 
@@ -328,7 +330,7 @@ console.log(mutable.val()) // => "mutable string"
 
 <h5>Observe</h5>
 <p>
-Every type in Yatta has its own bunch of events, to that you can listen to. All String Types can throw <i>insert</i>, and <i>delete</i> events.
+Every type in yjs has its own bunch of events, to that you can listen to. All String Types can throw <i>insert</i>, and <i>delete</i> events.
 </p>
 {% highlight javascript %}
 // create an observer function
@@ -405,21 +407,21 @@ Note: Please make sure, that the element that you bint the String to, does only 
 
 {% highlight javascript %}
 // create a mutable String Type on any Object type
-yatta.val("mutable_array", [1,2,3], "mutable")
+y.val("mutable_array", [1,2,3], "mutable")
 // If you don't set the third parameter, you create a "immutable" Array,
 // which conforms with the browser implementation of the type Array.
 // Insert and delete operations are not possible on "immutable" Arrays.
-yatta.val("immutable_string",[1,2,3])
+y.val("immutable_string",[1,2,3])
 
-var mutable = yatta.val("mutable_array");
-var immutable = yatta.val("immutable_array");
+var mutable = y.val("mutable_array");
+var immutable = y.val("immutable_array");
 
 console.log(immutable) // => [1,2,3]
 console.log(mutable) // => "[Object]"
 console.log(mutable.val()) // => [1,2,3]
 
 console.log(mutable.type) // => "Array"
-console.log(mutable instanceof yatta.types.Array) // => true
+console.log(mutable instanceof y.types.Array) // => true
 console.log(immutable instanceof Array) // => true
 {% endhighlight %}
 
@@ -441,7 +443,7 @@ console.log(mutable.val()) // => ["four"]
 
 <h5>Observe</h5>
 <p>
-Every type in Yatta has its own bunch of events, to that you can listen to. All String Types can throw <i>insert</i>, and <i>delete</i> events.
+Every type in yjs has its own bunch of events, to that you can listen to. All String Types can throw <i>insert</i>, and <i>delete</i> events.
 </p>
 {% highlight javascript %}
 // create an observer function

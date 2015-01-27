@@ -1,0 +1,43 @@
+{
+  "name": "yjs",
+  "version": "0.3.1",
+  "homepage": "https://github.com/DadaMonad/yjs",
+  "authors": [
+    "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
+  ],
+  "description": "A Framework that enables Real-Time collaboration on arbitrary data structures.",
+  "main": [
+    "./y.js",
+    "./y-object.html",
+    "./build/node/y.js"
+  ],
+  "keywords": [
+    "OT",
+    "collaboration",
+    "synchronization",
+    "ShareJS",
+    "Coweb",
+    "concurrency"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "node_modules",
+    "bower_components",
+    "test",
+    "extras",
+    "test"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#~0.5.3"
+  },
+  "_release": "0.3.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.3.1",
+    "commit": "5681ba84bf07ef7f0a0ffc00b87c671ac7cc50d5"
+  },
+  "_source": "git://github.com/rwth-acis/yjs.git",
+  "_target": "~0.3.1",
+  "_originalSource": "rwth-acis/yjs",
+  "_direct": true
+}

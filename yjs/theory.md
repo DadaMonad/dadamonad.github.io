@@ -1,7 +1,7 @@
 ---
-layout: yatta-page
+layout: y-page
 title: Theory
-permalink: /Yatta/theory/
+permalink: /yjs/theory/
 ---
 Find out more about the concurrent editing problem here
 [Cooperation, Concurrency, Conflicts, and Convergence](http://opencoweb.org/ocwdocs/intro/openg.html) and here
@@ -27,7 +27,3 @@ The downside of this approach is that the History Buffer holds at least as many 
 In contrast, an OT algorithm can have an empty History Buffer while the document size is very big.
 
 Eventually (after I published my paper), I will provide more information about YATA.
-
-So, how did I come up with the name for the implementation (Yatta! is not YATA)?
-Yatta! means "I did it!" in Japanese. You scream it when you accomplish something (for proper application I refer to the Yatta-man in [Heroes](http://heroeswiki.com/Yatta!)).
-There is also this awesome video on the Internet that will change your life [Yatta](https://www.youtube.com/watch?v=kL5DDSglM_s).
