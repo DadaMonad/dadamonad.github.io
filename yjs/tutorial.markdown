@@ -4,12 +4,12 @@ title: Tutorial
 permalink: /yjs/tutorial/
 ---
 
-This tutorial will give you a good idea on how you can work with yjs. Explore the [examples](./examples/) and the [documentation](./documentation/) for more information.
+This tutorial will give you a good idea on how you can work with yjs. Check the [documentation](./doc/) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](./examples/).
 
-Also, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples you find here. If you have any problem, ask a question in the comments section at the bottom of this page.
+Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples you find here. If you have any problem, ask a question in the comments section at the bottom of this page.
 
 ### y-connectors
-First of all, you have to define how you want your peers to connect to each other. You find a bunch of connectors in the [y-connector](https://github.com/rwth-acis/y-connectors) repository. Here, we create an XMPP connector:
+First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A connector basically connects your client with each other. The cool thing in yjs is that you can simply interchange different connectors. So you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. You find a bunch of connectors in the [y-connector](https://github.com/rwth-acis/y-connectors) repository. And it is possible to define your own connectors, too. Here, we create an XMPP connector:
 
 {% highlight html %}
 <script src="./path-to-library/y-xmpp.min.js"></script>
@@ -19,13 +19,13 @@ First of all, you have to define how you want your peers to connect to each othe
 {% endhighlight %}
 
 
-The XMPP-Connector will join a multi-user-chat room. The first connector that joins the chatroom will act as the moderator. Every new client that joins the chat room will synchronize with the moderator first, and henceforth publish changes to the XMPP multi-user-chat. When the moderator goes offline, new users are unable to synchronize. So you have to disconnect all clients that are currently in the room, and then the first user that joins the empty room is the moderator again.
+The XMPP connector communicates through a multi-user-chat room. The first connector that joins the chatroom will act as the moderator. Every new client that joins the chat room hereinafter, will synchronize with the moderator first, and publish all changes to the XMPP multi-user-chat. When the moderator goes offline, new users are unable to synchronize. So you have to disconnect all clients that are currently in the room. The first user that joins the empty room is the moderator again.
 
 #####  Tips:
 
 * Try to pick a random room name, so that it does not collide with another users room name. E.g. "efkdyjd0" - you can generate random room names like this: `(Math.random()+1).toString(36).substring(10)`
 * In production, the first connector who logs into the chat room could be some server that manages state. It is easy to set up a nodejs server with yjs.
-* You get the *ids* of all connected users with `connector.connections`.
+* You get the *ids* of all connected users with `connector.connections`. (works only *after* you bound the connector to an instance of Y)
 
 ##### Try it
 Open you browser console, and create a connector:
@@ -131,8 +131,8 @@ yjs as a *custom element* makes building collaborative applications _sooo_ easy.
 
 {% highlight html %}
 <link rel="import" href="/polymer/polymer.html">
+<link rel="import" href="/y-connectors/y-xmpp/y-xmpp.html">
 <link rel="import" href="/y/y-object.html">
-<link rel="import" href="/y-connectors/xmpp-connector/xmpp-connector.html">
 <link rel="import" href="/paper-slider/paper-slider.html">
 <link rel="import" href="/paper-radio-group/paper-radio-group.html">
 
@@ -188,8 +188,8 @@ Manipulate the values of the *y* object, and observe the live changes of the cus
 What do **you** want to see next?
 
 
-<script src="{{ site.baseurl }}bower_components/y-connectors/y-xmpp/y-xmpp.js"></script>
 <script src="{{ site.baseurl }}bower_components/yjs/y.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-connectors/y-xmpp/y-xmpp.js"></script>
 <link rel="import" href="{{ site.baseurl }}elements/elements-showoff.html">
 
 <!--script>
