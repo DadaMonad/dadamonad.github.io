@@ -37,7 +37,7 @@ Yjs is still in an early development phase. Don't expect that everything is work
 * Custom data types
 
 ## Support
-Please report _any_ issues to the [Github issue page](https://github.com/DadaMonad/yjs/issues)!
+Please report _any_ issues to the [Github issue page](https://github.com/rwth-acis/yjs/issues)!
 I would appreciate if developers give me feedback on how _convenient_ the framework is, and if it is easy to use. Particularly the XML-support may not support every DOM-methods - if you encounter a method that does not cause any change on other peers, please state function name, and sample parameters. However, there are browser-specific features, that Yjs won't support.
 
 ## License
