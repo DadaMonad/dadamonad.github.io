@@ -87,7 +87,7 @@ Here are some examples of shared elements, and how you can realize them. For max
 
 {% highlight html %}
 {% raw %}
-<y-object connector="connector">
+<y-object connector="{{connector}}">
   <y-property name="slider" val={{slider}}></y-property>
 </y-object>
 <paper-slider max="100" value={{slider}}></paper-slider>
@@ -109,7 +109,7 @@ Here are some examples of shared elements, and how you can realize them. For max
 
 {% highlight html %}
 {% raw %}
-<y-object connector="connector">
+<y-object connector="{{connector}}">
   <y-property name="radio" val={{radio}}></y-property>
 </y-object>
 <paper-radio-group selected={{radio}}>
