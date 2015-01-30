@@ -6,34 +6,34 @@ permalink: /yjs/tutorial/
 
 This tutorial will give you a good idea on how you can work with Yjs. Check the [documentation](./doc/) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](./examples/).
 
-Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples you find here. If you have any problem, ask a question in the comments section at the bottom of this page.
+Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples. If you have any problem, ask a question in the comments section at the bottom of this page.
 
 ### y-connectors
-First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A connector basically connects your client with each other. The cool thing in Yjs is that you can simply interchange different connectors. So you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. You find a bunch of connectors in the [y-connector](https://github.com/rwth-acis/y-connectors) repository. And it is possible to define your own connectors, too. Here, we create an XMPP connector:
+First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A is an interfaces that defines how your clients communicate with each other. The cool thing in Yjs is that you can simply interchange different connectors. So you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. You find a bunch of connectors in the [y-connector](https://github.com/rwth-acis/y-connectors) repository. And it is possible to define your own connectors, too. Here, we create an XMPP connector:
 
 {% highlight html %}
 <script src="./path-to-library/y-xmpp.min.js"></script>
 <script>
-  var connector = new Y.XMPP("my-awesome-roomname");
+  // Connect to our testing server, and join an XMPP multi user chat room.
+  var connector = new Y.XMPP().join("my-awesome-roomname");
 </script>
 {% endhighlight %}
 
-
-The XMPP connector communicates through a multi-user-chat room. The first connector that joins the chatroom will act as the moderator. Every new client that joins the chat room hereinafter, will synchronize with the moderator first, and publish all changes to the XMPP multi-user-chat. When the moderator goes offline, new users are unable to synchronize. So you have to disconnect all clients that are currently in the room. The first user that joins the empty room is the moderator again.
+The XMPP connector defines how to exchange updates through a multi-user-chat room. The XMPP connector can serve thousands of users. Every client that joins the session has to retrieve the current shared document from a so called *master* client. The first connector that joins the chatroom will act as the master client. Every new client that joins the chat room hereinafter, will synchronize with the master client first, and henceforward publish all changes to the XMPP multi-user-chat. When the master client goes offline, new users are unable to synchronize. So you have to disconnect all clients that are currently in the room. The first user that joins the empty room is the master again. In order to find out more about this, check the documentation.
 
 #####  Tips:
 
 * Try to pick a random room name, so that it does not collide with another users room name. E.g. "efkdyjd0" - you can generate random room names like this: `(Math.random()+1).toString(36).substring(10)`
-* In production, the first connector who logs into the chat room could be some server that manages state. It is easy to set up a nodejs server with Yjs.
+* In production, the first connector who logs into the chat room could be some server that manages state. It is easy to set up a nodejs server with Yjs (see [server.js](https://github.com/DadaMonad/meme-together/blob/master/server.js) from the meme-together application). Also it is possible to have multiple master clients.
 * You get the *ids* of all connected users with `connector.connections`. (works only *after* you bound the connector to an instance of Y)
 
 ##### Try it
 Open you browser console, and create a connector:
 
 {% highlight javascript %}
-var connector = new XMPPConnector("some-random-room-name");
+var connector = new Y.XMPP().join("some-random-room-name");
 console.log(connector.connections) // retrieve the ids of all connected users
-console.log(connector.role === "moderator") // true, if the connectors acts as a moderator
+console.log(connector.role === "moderator") // true, if the connectors acts as a master client
 {% endhighlight %}
 
 ### Create an instance of Y

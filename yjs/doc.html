@@ -84,14 +84,14 @@ window.onload = function(){
     </p>
 
     <p>
-    The XMPP-Connector joins an XMPP multi-user-chat. If the room does not exist yet, the Connector will create it first. Note: the first user who joins the room, will be the <i>moderator</i>. Every user that joins the room hereinafter, syncs with the moderator first, and henceforth publish changes to the XMPP multi-user-chat. Therefore, you must assure that there is always a moderator in the room. When you use the XMPP-Connector with our server, the room will be deleted when all users leave the room.
+    The XMPP-Connector joins an XMPP multi-user-chat. If the room does not exist yet, the Connector will create it first. Note: the first user who joins the room, will be the <i>master</i> client. Every user that joins the room hereinafter, syncs with the master client first, and henceforth publish changes to the XMPP multi-user-chat. Therefore, you must assure that there is always a master client in the room. When you use the XMPP-Connector with our server, the room will be deleted when all users leave the room.
     </p>
     <p>
-    In production, you may want to implement a server (in Node.js), that holds the state of your shared data types, even when all users are disconnected. You can find such a server implementation <a href="https://github.com/DadaMonad/meme-together/blob/master/server.js">here</a>.
+    In production, you may want to implement a server (in Node.js), that holds the state of your shared data types, even when all users are disconnected. You can find such a server implementation <a href="https://github.com/DadaMonad/meme-together/blob/master/server.js">here</a>. Note: Yjs itself does not depend on a server instance. The server is just another client.
     </p>
 
     <p>
-    When testing without server: The users wont synchronize when the moderator is offline. So you have to disconnect all clients that are currently in the room, and then the first user that joins the empty room is the moderator again.
+    When testing without server: The users wont synchronize when the master client is offline. So you have to disconnect all clients that are currently in the room, and then the first user that joins the empty room is the master client again.
     </p>
 
     <h5> Install with NPM </h5>
@@ -124,10 +124,13 @@ window.onload = function(){
 
     <h5> Configure </h5>
     {% highlight javascript %}
-    var connector = Y.XMPP("room-name", options)
+    var conn = new Y.XMPP(options);
+    var connector1 = conn.join("room-name1");
+    var connector2 = conn.join("room-name2");
+    // ...
     {% endhighlight %}
 
-    The options <i>object</i> can have the following properties:
+    The <i>options</i> object can have the following properties:
     <dl>
       <dt>jid (optional)</dt>
       <dd> The users jingle id. If you don't specify login credentials, the XMPP-Connector will connect as a anonymous user. It is your choice to configure the XMPP room in such a way that only registered users, are able to join the multi-user-chat.</dd>

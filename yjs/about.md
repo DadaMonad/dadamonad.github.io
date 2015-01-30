@@ -9,7 +9,7 @@ Yjs is a framework for optimistic concurrency control and automatic conflict res
 In the future, we want to enable users to implement their own collaborative types. Currently we provide data types for
 * Text
 * Json
-* XML
+* XML (currently disabled)
 
 Unlike other frameworks, Yjs supports P2P message propagation and is not bound to a specific communication protocol. Therefore, Yjs is extremely scalable and can be used in a wide range of application scenarios.
 
