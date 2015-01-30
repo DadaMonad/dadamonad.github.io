@@ -193,7 +193,7 @@ What do **you** want to see next?
 <link rel="import" href="{{ site.baseurl }}elements/elements-showoff.html">
 
 <!--script>
-var connector = new Y.XMPP("tutorial");
+var connector = new Y.XMPP().join("tutorial");
 var y = new Y(connector);
 connector.whenSynced(function(){
   if(y.val("shared_text") == null){
