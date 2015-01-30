@@ -1,8 +1,8 @@
-var Connector, XMPP, XMPPConnector, encode_message, extract_resource_from_jid, ltx, parse_message,
+var Connector, NXMPP, XMPPConnector, XMPPHandler, extract_bare_from_jid, extract_resource_from_jid, ltx,
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-XMPP = require("node-xmpp-client");
+NXMPP = require("node-xmpp-client");
 
 ltx = require("ltx");
 
@@ -10,107 +10,27 @@ extract_resource_from_jid = function(jid) {
   return jid.split("/")[1];
 };
 
+extract_bare_from_jid = function(jid) {
+  return jid.split("/")[0];
+};
+
 Connector = require('../connector');
 
-parse_message = function(m) {
-  var parse_array, parse_object;
-  parse_array = function(node) {
-    var n, _i, _len, _ref, _results;
-    _ref = node.children;
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      n = _ref[_i];
-      if (n.getAttribute("isArray") === "true") {
-        _results.push(parse_array(n));
-      } else {
-        _results.push(parse_object(n));
-      }
-    }
-    return _results;
-  };
-  parse_object = function(node) {
-    var int, json, n, name, value, _i, _len, _ref, _ref1;
-    json = {};
-    _ref = node.attrs;
-    for (name in _ref) {
-      value = _ref[name];
-      int = parseInt(value);
-      if (isNaN(int) || ("" + int) !== value) {
-        json[name] = value;
-      } else {
-        json[name] = int;
-      }
-    }
-    _ref1 = node.children;
-    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-      n = _ref1[_i];
-      name = n.name;
-      if (n.getAttribute("isArray") === "true") {
-        json[name] = parse_array(n);
-      } else {
-        json[name] = parse_object(n);
-      }
-    }
-    return json;
-  };
-  return parse_object(m);
-};
-
-encode_message = function(m, json) {
-  var encode_array, encode_object;
-  encode_object = function(m, json) {
-    var name, value;
-    for (name in json) {
-      value = json[name];
-      if (value == null) {
-
-      } else if (value.constructor === Object) {
-        encode_object(m.c(name), value);
-      } else if (value.constructor === Array) {
-        encode_array(m.c(name), value);
-      } else {
-        m.setAttribute(name, value);
-      }
-    }
-    return m;
-  };
-  encode_array = function(m, array) {
-    var e, _i, _len;
-    m.setAttribute("isArray", "true");
-    for (_i = 0, _len = array.length; _i < _len; _i++) {
-      e = array[_i];
-      if (e.constructor === Object) {
-        encode_object(m.c("array-element"), e);
-      } else {
-        encode_array(m.c("array-element"), e);
-      }
-    }
-    return m;
-  };
-  if (json.constructor === Object) {
-    return encode_object(m.c("y", {
-      xmlns: "http://y.ninja/connector-stanza"
-    }), json);
-  } else if (json.constructor === Array) {
-    return encode_array(m.c("y", {
-      xmlns: "http://y.ninja/connector-stanza"
-    }), json);
-  } else {
-    throw new Error("I can't encode this json!");
-  }
-};
-
-XMPPConnector = (function(_super) {
-  __extends(XMPPConnector, _super);
-
-  function XMPPConnector(room, opts) {
-    var creds, that;
+XMPPHandler = (function() {
+  function XMPPHandler(opts) {
+    var creds;
     if (opts == null) {
       opts = {};
     }
+    this.rooms = {};
     if (opts.node_xmpp_client != null) {
       this.xmpp = opts.node_xmpp_client;
     } else {
+      if (opts.defaultRoomComponent != null) {
+        this.defaultRoomComponent = opts.defaultRoomComponent;
+      } else {
+        this.defaultRoomComponent = "@conference.yatta.ninja";
+      }
       creds = {};
       if (opts.jid != null) {
         creds.jid = opts.jid;
@@ -130,144 +50,139 @@ XMPPConnector = (function(_super) {
           url: opts.websocket
         };
       }
-      this.xmpp = new XMPP.Client(creds);
+      this.xmpp = new NXMPP.Client(creds);
     }
-    this.debug = false;
-    XMPPConnector.__super__.constructor.call(this);
-    this._is_server = true;
-    this.is_syncing = false;
+    this.is_online = false;
     this.connections = {};
-    that = this;
-    this.xmpp.on('online', function() {
-      var subscribeToRoom;
-      subscribeToRoom = function() {
-        var f, room_subscription, _i, _len, _ref;
-        that.room = room + "@conference.yatta.ninja";
-        that.room_jid = that.room + "/" + that.xmpp.jid.resource;
-        that.id = that.xmpp.jid.resource;
-        _ref = that.when_user_id_set;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          f = _ref[_i];
-          f(that.id);
-        }
-        room_subscription = new ltx.Element('presence', {
-          to: that.room_jid
-        }).c('x', {});
-        return that.xmpp.send(room_subscription);
+    this.when_online_listeners = [];
+    this.xmpp.on('online', (function(_this) {
+      return function() {
+        return _this.setIsOnline();
       };
-      if (that.getHB == null) {
-        return that._whenBoundToY = subscribeToRoom;
-      } else {
-        return subscribeToRoom();
-      }
-    });
-    this.xmpp.on('stanza', function(stanza) {
-      var data, f, hb, o, res, send_again, sender, sender_role, _hb, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2;
-      sender = stanza.getAttribute("from");
-      if (stanza.is("presence")) {
-        sender_role = stanza.getChild("x", "http://jabber.org/protocol/muc#user").getChild("item").getAttribute("role");
-        if (sender === that.room_jid) {
-          that.role = sender_role;
-          if (that.role === "moderator") {
-            that.is_synced = true;
-            _ref = that.compute_when_synced;
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              f = _ref[_i];
-              f();
-            }
-          }
-        } else if (stanza.getAttribute("type") === "unavailable") {
-          delete that.connections[extract_resource_from_jid(sender)];
-        } else {
-          that.connections[extract_resource_from_jid(sender)] = sender;
-          if (!this.is_synced && sender_role === "moderator") {
-            that._performSync(sender);
-          }
+    })(this));
+    this.xmpp.on('stanza', (function(_this) {
+      return function(stanza) {
+        var room;
+        room = extract_bare_from_jid(stanza.getAttribute("from"));
+        if (_this.rooms[room] != null) {
+          return _this.rooms[room].onStanza(stanza);
         }
-      } else {
-        if (sender === that.room_jid) {
-          return true;
-        }
-        res = stanza.getChild("y", "http://y.ninja/connector-stanza");
-        if (that.receive_counter == null) {
-          that.receive_counter = 0;
-        }
-        that.receive_counter++;
-        if (res != null) {
-          res = parse_message(res);
-          if (res.sync_step == null) {
-            _ref1 = that.receive_handlers;
-            for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-              f = _ref1[_j];
-              f(sender, res);
-            }
-          } else {
-            if (res.sync_step === "getHB") {
-              data = that.getHB([]);
-              hb = data.hb;
-              _hb = [];
-              for (_k = 0, _len2 = hb.length; _k < _len2; _k++) {
-                o = hb[_k];
-                _hb.push(o);
-                if (_hb.length > 30) {
-                  that._send(sender, {
-                    sync_step: "applyHB_",
-                    data: _hb
-                  });
-                  _hb = [];
-                }
-              }
-              that._send(sender, {
-                sync_step: "applyHB",
-                data: _hb
-              });
-              if (res.send_again != null) {
-                send_again = (function(sv) {
-                  return function() {
-                    hb = that.getHB(sv).hb;
-                    return that._send(sender, {
-                      sync_step: "applyHB",
-                      data: hb,
-                      sent_again: "true"
-                    });
-                  };
-                })(data.state_vector);
-                setTimeout(send_again, 3000);
-              }
-            } else if (res.sync_step === "applyHB") {
-              that.applyHB(res.data);
-              if ((res.sent_again != null) && !that.is_synced) {
-                that.is_synced = true;
-                _ref2 = that.compute_when_synced;
-                for (_l = 0, _len3 = _ref2.length; _l < _len3; _l++) {
-                  f = _ref2[_l];
-                  f();
-                }
-              }
-            } else if (res.sync_step === "applyHB_") {
-              that.applyHB(res.data);
-            }
-          }
-        }
-      }
-      if (that.debug) {
-        return console.log("RECEIVED: " + stanza.toString());
-      }
-    });
+      };
+    })(this));
+    this.debug = false;
   }
 
-  XMPPConnector.prototype._send = function(user, json, type) {
-    var m, message;
-    if (this.is_synced || (json.sync_step != null) || this.is_syncing) {
-      if (this.send_conter == null) {
-        this.send_conter = 0;
+  XMPPHandler.prototype.whenOnline = function(f) {
+    if (this.is_online) {
+      return f();
+    } else {
+      return this.when_online_listeners.push(f);
+    }
+  };
+
+  XMPPHandler.prototype.setIsOnline = function() {
+    var f, _i, _len, _ref;
+    _ref = this.when_online_listeners;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      f = _ref[_i];
+      f();
+    }
+    return this.is_online = true;
+  };
+
+  XMPPHandler.prototype.join = function(room) {
+    var room_conn;
+    if (room == null) {
+      throw new Error("you must specify a room!");
+    }
+    if (room.indexOf("@") === -1) {
+      room += this.defaultRoomComponent;
+    }
+    if (this.rooms[room] == null) {
+      room_conn = new XMPPConnector();
+      this.rooms[room] = room_conn;
+      this.whenOnline((function(_this) {
+        return function() {
+          return room_conn.whenBoundToY(function() {
+            var room_subscription;
+            room_conn.setUserId(_this.xmpp.jid.resource);
+            room_conn.room = room;
+            room_conn.room_jid = room + "/" + _this.xmpp.jid.resource;
+            room_conn.xmpp = _this.xmpp;
+            room_conn.xmpp_handler = _this;
+            room_subscription = new ltx.Element('presence', {
+              to: room_conn.room_jid
+            }).c('x', {});
+            return _this.xmpp.send(room_subscription);
+          });
+        };
+      })(this));
+    }
+    return this.rooms[room];
+  };
+
+  return XMPPHandler;
+
+})();
+
+XMPPConnector = (function(_super) {
+  __extends(XMPPConnector, _super);
+
+  function XMPPConnector() {
+    return XMPPConnector.__super__.constructor.apply(this, arguments);
+  }
+
+  XMPPConnector.prototype.exit = function() {
+    this.xmpp.send(new ltx.Element('presence', {
+      to: this.room_jid,
+      type: "unavailable"
+    }));
+    return delete this.xmpp_handler.rooms[this.room];
+  };
+
+  XMPPConnector.prototype.onStanza = function(stanza) {
+    var res, sender, sender_role;
+    sender = stanza.getAttribute("from");
+    if (stanza.is("presence")) {
+      sender_role = stanza.getChild("x", "http://jabber.org/protocol/muc#user").getChild("item").getAttribute("role");
+      if (sender === this.room_jid) {
+        this.role = sender_role;
+        if (this.role === "moderator") {
+          this.setStateSynced();
+        }
+      } else if (stanza.getAttribute("type") === "unavailable") {
+        delete this.connections[extract_resource_from_jid(sender)];
+      } else {
+        this.connections[extract_resource_from_jid(sender)] = sender;
+        if (!this.is_synced && sender_role === "moderator") {
+          this.performSyncWithMaster(sender);
+        }
       }
-      this.send_conter++;
+    } else {
+      if (sender === this.room_jid) {
+        return true;
+      }
+      res = stanza.getChild("y", "http://y.ninja/connector-stanza");
+      if (res != null) {
+        this.receiveMessage(sender, this.parseMessageFromXml(res));
+      }
+    }
+    if (this.debug) {
+      return console.log("RECEIVED: " + stanza.toString());
+    }
+  };
+
+  XMPPConnector.prototype.send = function(user, json, type) {
+    var m, message;
+    if (type == null) {
+      type = "message";
+    }
+    if (this.is_synced || (json.sync_step != null) || this.is_syncing) {
       m = new ltx.Element("message", {
         to: user,
         type: type != null ? type : "chat"
       });
-      message = encode_message(m, json);
+      message = this.encodeMessageToXml(m, json);
       if (this.debug) {
         console.log("SENDING: " + message.toString());
       }
@@ -275,39 +190,8 @@ XMPPConnector = (function(_super) {
     }
   };
 
-  XMPPConnector.prototype._broadcast = function(json) {
-    return this._send(this.room, json, "groupchat");
-  };
-
-  XMPPConnector.prototype.invokeSync = function() {};
-
-  XMPPConnector.prototype._performSync = function(user) {
-    var hb, o, _hb, _i, _len;
-    if (!this.is_syncing) {
-      this.is_syncing = true;
-      this._send(user, {
-        sync_step: "getHB",
-        send_again: "true",
-        data: []
-      });
-      hb = this.getHB([]).hb;
-      _hb = [];
-      for (_i = 0, _len = hb.length; _i < _len; _i++) {
-        o = hb[_i];
-        _hb.push(o);
-        if (_hb.length > 30) {
-          this._broadcast({
-            sync_step: "applyHB_",
-            data: _hb
-          });
-          _hb = [];
-        }
-      }
-      return this._broadcast({
-        sync_step: "applyHB",
-        data: _hb
-      });
-    }
+  XMPPConnector.prototype.broadcast = function(json) {
+    return this.send(this.room, json, "groupchat");
   };
 
   return XMPPConnector;
@@ -315,13 +199,13 @@ XMPPConnector = (function(_super) {
 })(Connector);
 
 if (module.exports != null) {
-  module.exports = XMPPConnector;
+  module.exports = XMPPHandler;
 }
 
 if (typeof window !== "undefined" && window !== null) {
   if (typeof Y === "undefined" || Y === null) {
-    throw new Error("You must import Y first");
+    throw new Error("You must import Y first!");
   } else {
-    Y.XMPP = XMPPConnector;
+    Y.XMPP = XMPPHandler;
   }
 }

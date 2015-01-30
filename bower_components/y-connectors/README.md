@@ -9,8 +9,8 @@ E.g. You can exchange the PeerJs-Connector with the XMPP-Connector only by chang
 
 It is the communication interface used by [yjs](https://github.com/rwth-acis/yjs).
 
-Currently we have interfaces for:
-* PeerJs
+Currently, only the XMPP connector is very well supported. This repository provides connectors for
+* WebRTC (over PeerJs)
 * XMPP
 * Testing
 

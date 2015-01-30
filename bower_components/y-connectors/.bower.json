@@ -1,6 +1,6 @@
 {
   "name": "y-connectors",
-  "version": "0.3.0",
+  "version": "0.3.3",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
   ],
@@ -28,14 +28,14 @@
   "dependencies": {},
   "resolutions": {},
   "homepage": "https://github.com/rwth-acis/y-connectors",
-  "_release": "0.3.0",
+  "_release": "0.3.3",
   "_resolution": {
     "type": "version",
-    "tag": "v0.3.0",
-    "commit": "4bd8d4221420a89d408590e1eec15e2c32697dc9"
+    "tag": "v0.3.3",
+    "commit": "4857b6aea3749571907382fbdd2c90d9f527b001"
   },
   "_source": "git://github.com/rwth-acis/y-connectors.git",
-  "_target": "~0.3.0",
-  "_originalSource": "rwth-acis/y-connectors",
+  "_target": "~0.3.3",
+  "_originalSource": "y-connectors",
   "_direct": true
 }

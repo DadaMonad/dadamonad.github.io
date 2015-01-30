@@ -1,91 +1,32 @@
 
-XMPP = require "node-xmpp-client"
+NXMPP = require "node-xmpp-client"
 ltx = require "ltx"
 
 extract_resource_from_jid = (jid)->
   jid.split("/")[1]
 
+extract_bare_from_jid = (jid)->
+  jid.split("/")[0]
+
 Connector = require '../connector'
 
 
-# Currently, the HB encodes operations as JSON. For the moment I want to keep it
-# that way. Maybe we support encoding in the HB as XML in the future, but for now I don't want
-# too much overhead. Y is very likely to get changed a lot in the future
-#
-# Because we don't want to encode JSON as string (with character escaping, wich makes it pretty much unreadable)
-# we encode the JSON as XML.
-#
-# When the HB support encoding as XML, the format should look pretty much like this.
-
-# does not support primitive values as array elements
-parse_message = (m)->
-  parse_array = (node)->
-    for n in node.children
-      if n.getAttribute("isArray") is "true"
-        parse_array n
-      else
-        parse_object n
-
-  parse_object = (node)->
-    json = {}
-    for name, value  of node.attrs
-      int = parseInt(value)
-      if isNaN(int) or (""+int) isnt value
-        json[name] = value
-      else
-        json[name] = int
-    for n in node.children
-      name = n.name
-      if n.getAttribute("isArray") is "true"
-        json[name] = parse_array n
-      else
-        json[name] = parse_object n
-    json
-  parse_object m
-
-# encode message in xml
-# we use string because Strophe only accepts an "xml-string"..
-# So {a:4,b:{c:5}} will look like
-# <y a="4">
-#   <b c="5"></b>
-# </y>
-# m - ltx element
-# json - guess it ;)
-#
-encode_message = (m, json)->
-  # attributes is optional
-  encode_object = (m, json)->
-    for name,value of json
-      if not value?
-        # nop
-      else if value.constructor is Object
-        encode_object m.c(name), value
-      else if value.constructor is Array
-        encode_array m.c(name), value
-      else
-        m.setAttribute(name,value)
-    m
-  encode_array = (m, array)->
-    m.setAttribute("isArray","true")
-    for e in array
-      if e.constructor is Object
-        encode_object m.c("array-element"), e
-      else
-        encode_array m.c("array-element"), e
-    m
-  if json.constructor is Object
-    encode_object m.c("y",{xmlns:"http://y.ninja/connector-stanza"}), json
-  else if json.constructor is Array
-    encode_array m.c("y",{xmlns:"http://y.ninja/connector-stanza"}), json
-  else
-    throw new Error "I can't encode this json!"
-
-
-class XMPPConnector extends Connector
-  constructor: (room, opts = {})->
+# This Handler handles a set of connections
+class XMPPHandler
+  #
+  # See documentation for parameters
+  #
+  constructor: (opts = {})->
+    # Initialize NXMPP.Client
+    @rooms = {}
     if opts.node_xmpp_client?
       @xmpp = opts.node_xmpp_client
     else
+      if opts.defaultRoomComponent?
+        @defaultRoomComponent = opts.defaultRoomComponent
+      else
+        @defaultRoomComponent = "@conference.yatta.ninja"
+
       creds = {}
       if opts.jid?
         creds.jid = opts.jid
@@ -102,149 +43,129 @@ class XMPPConnector extends Connector
         creds.websocket =
           url: opts.websocket
 
-      @xmpp = new XMPP.Client creds
+      @xmpp = new NXMPP.Client creds
+
+    # What happens when you go online
+    @is_online = false
+    @connections = {}
+    @when_online_listeners = []
+    @xmpp.on 'online', =>
+      @setIsOnline()
+    @xmpp.on 'stanza', (stanza)=>
+      # when a stanza is received, send it to the corresponding connector
+      room = extract_bare_from_jid stanza.getAttribute "from"
+      if @rooms[room]?
+        @rooms[room].onStanza(stanza)
+
 
     @debug = false
-    super()
 
-    @_is_server = true
-    @is_syncing = false
+  # Execute a function when xmpp is online (if it is not yet online, wait until it is)
+  whenOnline: (f)->
+    if @is_online
+      f()
+    else
+      @when_online_listeners.push f
 
-    @connections = {}
-    that = @
-    @xmpp.on 'online', ->
-      # login to room
-      # Want to be like this:
-      # <presence from='a33b9758-62f8-42e1-a827-83ef04f887c5@yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' to='thing@conference.yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' xmlns='jabber:client'>
-      # <x xmlns='http://jabber.org/protocol/muc'/></presence>
-      subscribeToRoom = ()->
-        that.room = room + "@conference.yatta.ninja"
-        that.room_jid = that.room + "/" + that.xmpp.jid.resource
-        that.id = that.xmpp.jid.resource
-        for f in that.when_user_id_set
-          f(that.id)
-        room_subscription = new ltx.Element 'presence',
-            to: that.room_jid
-          .c 'x', {}
-        that.xmpp.send room_subscription
+  # @xmpp is online from now on. Therefore this executed all listeners that depend on this event
+  setIsOnline: ()->
+    for f in @when_online_listeners
+      f()
+    @is_online = true
 
-      if not that.getHB?
-        # the connector has not yet been bound to a Y type
-        # This can happen in the tutorial
-        that._whenBoundToY = subscribeToRoom
+  #
+  # Join a specific room
+  #
+  join: (room)->
+    if not room?
+      throw new Error "you must specify a room!"
+    if room.indexOf("@") is -1
+      room += @defaultRoomComponent
+    if not @rooms[room]?
+      room_conn = new XMPPConnector()
+      @rooms[room] = room_conn
+      @whenOnline ()=>
+        # login to room
+        # Want to be like this:
+        # <presence from='a33b9758-62f8-42e1-a827-83ef04f887c5@yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' to='thing@conference.yatta.ninja/c49eb7fb-1923-42f2-9cca-4c97477ea7a8' xmlns='jabber:client'>
+        # <x xmlns='http://jabber.org/protocol/muc'/></presence>
+        room_conn.whenBoundToY ()=>
+          room_conn.setUserId @xmpp.jid.resource
+          room_conn.room = room # set the room jid
+          room_conn.room_jid = room + "/" + @xmpp.jid.resource # set your jid in the room
+          room_conn.xmpp = @xmpp
+          room_conn.xmpp_handler = @
+          room_subscription = new ltx.Element 'presence',
+              to: room_conn.room_jid
+            .c 'x', {}
+          @xmpp.send room_subscription
+
+    @rooms[room]
+
+class XMPPConnector extends Connector
+
+  #
+  # closes a connection to a room
+  #
+  exit: ()->
+    @xmpp.send new ltx.Element 'presence',
+      to: @room_jid
+      type: "unavailable"
+    delete @xmpp_handler.rooms[@room]
+
+  onStanza: (stanza)->
+    sender = stanza.getAttribute "from"
+    if stanza.is "presence"
+      # a new user joined or leaved the room
+      sender_role = stanza.getChild("x","http://jabber.org/protocol/muc#user").getChild("item").getAttribute("role")
+      if sender is @room_jid
+        # this client in received information, that it successfully joined the room
+        @role = sender_role
+        if @role is "moderator"
+          # this client created this room, therefore there is (should be) nobody to sync to
+          @setStateSynced()
+      else if stanza.getAttribute("type") is "unavailable"
+        # a user left the room
+        delete @connections[extract_resource_from_jid sender]
       else
-        subscribeToRoom()
+        # a user joined the room
+        @connections[extract_resource_from_jid sender] = sender
+        if not @is_synced and sender_role is "moderator"
+          @performSyncWithMaster sender
+    else
+      # it is some message that was sent into the room (could also be a private chat or whatever)
+      if sender is @room_jid
+        return true
+      res = stanza.getChild "y", "http://y.ninja/connector-stanza"
+      # could be some simple text message (or whatever)
+      if res?
+        # this is definitely a message intended for Yjs
+        @receiveMessage(sender, @parseMessageFromXml res)
 
-    @xmpp.on 'stanza', (stanza)->
-      sender = stanza.getAttribute "from"
-      if stanza.is "presence"
-        sender_role = stanza.getChild("x","http://jabber.org/protocol/muc#user").getChild("item").getAttribute("role")
-        if sender is that.room_jid
-          that.role = sender_role
-          if that.role is "moderator"
-            # this client created this room, therefore there is (should be) nobody to sync to
-            that.is_synced = true
-            for f in that.compute_when_synced
-              f()
-        else if stanza.getAttribute("type") is "unavailable"
-          delete that.connections[extract_resource_from_jid sender]
-        else
-          that.connections[extract_resource_from_jid sender] = sender
-          if not @is_synced and sender_role is "moderator"
-            that._performSync sender
-      else
-        if sender is that.room_jid
-          return true
-        res = stanza.getChild "y", "http://y.ninja/connector-stanza"
-        that.receive_counter ?= 0
-        that.receive_counter++
-        # could be some simple text message
-        if res?
-          res = parse_message res
-          if not res.sync_step?
-            for f in that.receive_handlers
-              f sender, res
-          else
-            if res.sync_step is "getHB"
-              data = that.getHB([])
-              hb = data.hb
-              _hb = []
-              for o in hb
-                _hb.push o
-                if _hb.length > 30
-                  that._send sender,
-                    sync_step: "applyHB_"
-                    data: _hb
-                  _hb = []
-              that._send sender,
-                sync_step: "applyHB"
-                data: _hb
-              if res.send_again?
-                send_again = do (sv = data.state_vector)->
-                  ()->
-                    hb = that.getHB(sv).hb
-                    that._send sender,
-                      sync_step: "applyHB",
-                      data: hb
-                      sent_again: "true"
-                setTimeout send_again, 3000
-            else if res.sync_step is "applyHB"
-              that.applyHB(res.data)
+    if @debug
+      console.log "RECEIVED: "+stanza.toString()
 
-              if res.sent_again? and not that.is_synced
-                that.is_synced = true
-                for f in that.compute_when_synced
-                  f()
-            else if res.sync_step is "applyHB_"
-              that.applyHB(res.data)
-
-      if that.debug
-        console.log "RECEIVED: "+stanza.toString()
-
-  _send: (user, json, type)->
+  send: (user, json, type = "message")->
     # do not send y-operations if not synced,
     # send sync messages though
     if @is_synced or json.sync_step? or @is_syncing
-      @send_conter ?= 0
-      @send_conter++
       m = new ltx.Element "message",
         to: user
         type: if type? then type else "chat"
-      message = encode_message(m, json)
+      message = @encodeMessageToXml(m, json)
       if @debug
         console.log "SENDING: "+message.toString()
       @xmpp.send message
 
-  _broadcast: (json)->
-    @_send @room, json, "groupchat"
+  broadcast: (json)->
+    @send @room, json, "groupchat"
 
-  invokeSync: ()->
-
-  _performSync: (user)->
-    if not @is_syncing
-      @is_syncing = true
-      @_send user,
-        sync_step: "getHB"
-        send_again: "true"
-        data: []
-      hb = @getHB([]).hb
-      _hb = []
-      for o in hb
-        _hb.push o
-        if _hb.length > 30
-          @_broadcast
-            sync_step: "applyHB_"
-            data: _hb
-          _hb = []
-      @_broadcast
-        sync_step: "applyHB"
-        data: _hb
 
 if module.exports?
-  module.exports = XMPPConnector
+  module.exports = XMPPHandler
 
 if window?
   if not Y?
-    throw new Error "You must import Y first"
+    throw new Error "You must import Y first!"
   else
-    Y.XMPP = XMPPConnector
+    Y.XMPP = XMPPHandler

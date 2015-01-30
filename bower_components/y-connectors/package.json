@@ -1,6 +1,6 @@
 {
   "name": "y-connectors",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Connect to other users via a generic interface. The interface is standardized, so you can use other connectors without changing your code. ",
   "main": "./build/node/index.js",
   "scripts": {

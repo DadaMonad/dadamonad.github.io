@@ -1,6 +1,5 @@
 {
   "name": "yjs",
-  "version": "0.3.1",
   "homepage": "https://github.com/DadaMonad/yjs",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
@@ -30,14 +29,14 @@
   "dependencies": {
     "polymer": "Polymer/polymer#~0.5.3"
   },
-  "_release": "0.3.1",
+  "_release": "v0.3.1.1",
   "_resolution": {
-    "type": "version",
-    "tag": "v0.3.1",
-    "commit": "5681ba84bf07ef7f0a0ffc00b87c671ac7cc50d5"
+    "type": "tag",
+    "tag": "v0.3.1.1",
+    "commit": "93e75e0111098981d996398e026485d48437fb62"
   },
   "_source": "git://github.com/rwth-acis/yjs.git",
-  "_target": "~0.3.1",
-  "_originalSource": "rwth-acis/yjs",
+  "_target": "v0.3.1.1",
+  "_originalSource": "yjs",
   "_direct": true
 }

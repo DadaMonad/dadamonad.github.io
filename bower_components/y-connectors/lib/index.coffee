@@ -1,3 +1,3 @@
 
 module.exports =
-  XMPP: require './xmpp-connector/xmpp-connector'
+  XMPP: require './y-xmpp/y-xmpp'
