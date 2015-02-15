@@ -9,7 +9,7 @@ This tutorial will give you a good idea on how you can work with Yjs. Check the 
 Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples. If you have any problem, ask a question in the comments section at the bottom of this page.
 
 ### Connectors
-First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A connector is an interfaces that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. You can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code.
+First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A connector is an interfaces that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. You can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. I this tutorial we will use the XMPP connector. But you should check out the WebRTC connector too - it is really fast!
 
 {% highlight html %}
 <script src="./y-xmpp/y-xmpp.min.js"></script>
