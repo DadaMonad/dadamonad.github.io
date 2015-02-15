@@ -4,7 +4,7 @@ title: Tutorial
 permalink: /yjs/tutorial/
 ---
 
-This tutorial will give you a good idea on how you can work with Yjs. Check the [documentation](./doc) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](./examples).
+This tutorial will give you a good idea on how you can work with Yjs. Check the [documentation](../doc) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](../examples).
 
 Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples. If you have any problem, ask a question in the comments section at the bottom of this page.
 
