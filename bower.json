@@ -16,8 +16,9 @@
     "tests"
   ],
   "dependencies": {
-    "yjs": "v0.3.2",
-    "y-connectors": "~0.3.3"
+    "yjs": "~0.4.0",
+    "y-xmpp": "~0.4.0",
+    "y-webrtc": "~0.4.0"
   },
   "devDependencies": {}
 }

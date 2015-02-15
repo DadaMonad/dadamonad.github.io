@@ -26,14 +26,17 @@ class HistoryBuffer
     own = @buffer[@user_id]
     if own?
       for o_name,o of own
-        o.uid.creator = id
+        if o.uid.creator?
+          o.uid.creator = id
+        if o.uid.alt?
+          o.uid.alt.creator = id
       if @buffer[id]?
         throw new Error "You are re-assigning an old user id - this is not (yet) possible!"
       @buffer[id] = own
       delete @buffer[@user_id]
-
-    @operation_counter[id] = @operation_counter[@user_id]
-    delete @operation_counter[@user_id]
+    if @operation_counter[@user_id]?
+      @operation_counter[id] = @operation_counter[@user_id]
+      delete @operation_counter[@user_id]
     @user_id = id
 
   emptyGarbage: ()=>
@@ -114,7 +117,7 @@ class HistoryBuffer
     for u_name,user of @buffer
       # TODO next, if @state_vector[user] <= state_vector[user]
       for o_number,o of user
-        if o.uid.doSync and unknown(u_name, o_number)
+        if (not o.uid.noOperation?) and o.uid.doSync and unknown(u_name, o_number)
           # its necessary to send it, and not known in state_vector
           o_json = o._encode()
           if o.next_cl? # applies for all ops but the most right delimiter!
@@ -196,7 +199,7 @@ class HistoryBuffer
   # you renew your own state_vector to the state_vector of the other user
   renewStateVector: (state_vector)->
     for user,state of state_vector
-      if (not @operation_counter[user]?) or (@operation_counter[user] < state_vector[user])
+      if ((not @operation_counter[user]?) or (@operation_counter[user] < state_vector[user])) and state_vector[user]?
         @operation_counter[user] = state_vector[user]
 
   #

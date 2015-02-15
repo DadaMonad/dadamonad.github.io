@@ -1,13 +1,22 @@
 
-
+ConnectorClass = require "./ConnectorClass"
 #
 # @param {Engine} engine The transformation engine
 # @param {HistoryBuffer} HB
 # @param {Array<Function>} execution_listener You must ensure that whenever an operation is executed, every function in this Array is called.
 #
 adaptConnector = (connector, engine, HB, execution_listener)->
+
+  for name, f of ConnectorClass
+    connector[name] = f
+
+  connector.setIsBoundToY()
+
   send_ = (o)->
-    if o.uid.creator is HB.getUserId() and (typeof o.uid.op_number isnt "string")
+    if (o.uid.creator is HB.getUserId()) and
+        (typeof o.uid.op_number isnt "string") and # TODO: i don't think that we need this anymore..
+        (o.uid.doSync is "true" or o.uid.doSync is true) and # TODO: ensure, that only true is valid
+        (HB.getUserId() isnt "_temp")
       connector.broadcast o
 
   if connector.invokeSync?
@@ -32,24 +41,22 @@ adaptConnector = (connector, engine, HB, execution_listener)->
   getHB = (v)->
     state_vector = parse_state_vector v
     hb = HB._encode state_vector
-    for o in hb
-      o.fromHB = "true" # execute immediately
     json =
       hb: hb
       state_vector: encode_state_vector HB.getOperationCounter()
     json
 
-  applyHB = (hb)->
-    engine.applyOp hb
+  applyHB = (hb, fromHB)->
+    engine.applyOp hb, fromHB
 
   connector.getStateVector = getStateVector
   connector.getHB = getHB
   connector.applyHB = applyHB
 
+  connector.receive_handlers ?= []
   connector.receive_handlers.push (sender, op)->
     if op.uid.creator isnt HB.getUserId()
       engine.applyOp op
 
-  connector.setIsBoundToY()
 
 module.exports = adaptConnector

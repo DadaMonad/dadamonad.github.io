@@ -4,7 +4,7 @@ title: About
 permalink: /yjs/
 ---
 
-Yjs is a framework for optimistic concurrency control and automatic conflict resolution on arbitrary data types. The framework implements a new OT-like concurrency algorithm and provides similar functionality as [ShareJs] and [OpenCoweb]. Yjs was designed to take away the pain from concurrently editing complex data types like Text, Json, and XML. You can find some applications for this framework [here](https://dadamonad.github.io/yjs/examples/).
+Yjs is a framework for optimistic concurrency control and automatic conflict resolution on arbitrary data types. The framework implements a new OT-like concurrency algorithm and provides similar functionality as [ShareJs] and [OpenCoweb]. Yjs was designed to take away the pain from concurrently editing complex data types like Text, Json, and XML. You can find some applications for this framework [here](https://dadamonad.github.io/yjs/examples).
 
 In the future, we want to enable users to implement their own collaborative types. Currently we provide data types for
 * Text
@@ -13,9 +13,9 @@ In the future, we want to enable users to implement their own collaborative type
 
 Unlike other frameworks, Yjs supports P2P message propagation and is not bound to a specific communication protocol. Therefore, Yjs is extremely scalable and can be used in a wide range of application scenarios.
 
-We support several communication protocols as so called *Connectors*. You find a bunch of Connectors in the [y-connectors](https://github.com/rwth-acis/y-connectors) repository. Currently supported communication protocols:
+We support several communication protocols as so called *Connectors*. You can create your own connector too - as it is described [here](https://dadamonad.github.io/yjs/connector/Howto-create-your-own-Connector.html). Currently, we support the following communication protocols:
 * [XMPP-Connector](http://xmpp.org) - Propagates updates in a XMPP multi-user-chat room
-* [WebRTC-Connector](http://peerjs.com/) - Propagate updates directly with WebRTC
+* [WebRTC-Connector](http://peerjs.com) - Propagate updates directly with WebRTC
 * [IWC-Connector](http://dbis.rwth-aachen.de/cms/projects/the-xmpp-experience#interwidget-communication) - Inter-widget Communication
 
 You can use Yjs client-, and server- side. You can get it as via npm, and bower. We even provide a polymer element for Yjs!

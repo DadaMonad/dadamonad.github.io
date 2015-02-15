@@ -10,7 +10,7 @@ url: ""
 harmony:
   name: "DadaMonad's Blog"
   # Little description about your site
-  description: Web, OT, yjs, Polymer and other stuff
+  description: Web, OT, Yjs, Polymer and other stuff
   meta_description: > # 
    Blog about my development on yjs and real-time web applications
   basetheme: theme-base-01 # pre defined thmes are darken, blue-water, redish.
@@ -41,7 +41,7 @@ kramdown:
 highlighter: pygments
 
 # Permalinks
-permalink:        pretty
+permalink:        none
 relative_permalinks: false
 exclude:
   - CNAME

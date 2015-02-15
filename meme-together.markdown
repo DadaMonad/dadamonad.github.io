@@ -1,5 +1,6 @@
 ---
 layout: page
+permalink: /meme-together/
 ---
 
 Create memes collaboratively. Everyone is able to see the changes you make in Real-Time. Open this page in another tab and be amazed. You find the complete source code for this example on [Github](https://github.com/DadaMonad/meme-together.git).
