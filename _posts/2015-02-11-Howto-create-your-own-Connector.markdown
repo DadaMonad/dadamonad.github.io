@@ -8,7 +8,7 @@ categories:
   - Connector
 ---
 
-If you want to integrate Yjs in you existing project, you most likely already set up some infrastructure to communicate with your clients. Maybe you have a paid plan at [pusher](https://pusher.com/) or you are really into [Socket.io](http://socket.io) or you would just rather use [Matrix](http://matrix.org/) as an underlaying communication protocol. There is no need to be satisfied with the awesome [XMPP connector](https://github.com/rwth-acis/y-xmpp) to propagate document updates. Build your own connector! It's easy!
+If you want to integrate Yjs in you existing project, you most likely already set up some infrastructure to communicate with your clients. Maybe you have a paid plan at [pusher](https://pusher.com/) or you are really into [Socket.io](http://socket.io), or you just rather want to use [Matrix](http://matrix.org/) as an underlying communication protocol. There is no need to be satisfied with the awesome [XMPP connector](https://github.com/rwth-acis/y-xmpp) to propagate document updates. Build your own connector! It's easy!
 
 In this article I'll explain how you can create your own connector. You can use _any_ communication protocol - whether it is a P2P based, federated, or client-server.
 
