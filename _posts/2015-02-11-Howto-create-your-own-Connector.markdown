@@ -26,7 +26,7 @@ You could create a master client with nodejs, that runs on our server/cloud.
 If you do not have (or do not want to have) a nodejs server instance, that can preserve the state of the shared document, you can choose the SyncAll sync method. Otherwise, you should go with the Master-Slave sync method.
 
 ### Initializing the Connector
-Like you probably know, you initialize an instance of Y like this:
+As you probably know, you initialize an instance of Y like this:
 {% highlight javascript %}
   var y = new Y(connector)
 {% endhighlight %}

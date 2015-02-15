@@ -15,6 +15,9 @@ layout: default
     var disqus_shortname = 'dadamonad'; // required: replace example with your forum shortname
     var disqus_title = "{{page.title}}";
     var disqus_identifier = "{{page.permalink}}";
+    if(disqus_identifier[disqus_identifier.length-1] === "/"){
+      disqus_identifier = disqus_identifier.slice(0,disqus_identifier.length-1);
+    }
     /* * * DON'T EDIT BELOW THIS LINE * * */
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
