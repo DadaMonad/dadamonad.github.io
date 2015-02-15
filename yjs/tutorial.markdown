@@ -189,7 +189,8 @@ What do **you** want to see next?
 
 
 <script src="{{ site.baseurl }}bower_components/yjs/y.js"></script>
-<script src="{{ site.baseurl }}bower_components/y-connectors/y-xmpp/y-xmpp.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-xmpp/y-xmpp.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-webrtc/y-webrtc.js"></script>
 <link rel="import" href="{{ site.baseurl }}elements/elements-showoff.html">
 
 <!--script>

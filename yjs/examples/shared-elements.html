@@ -5,7 +5,7 @@ permalink: /yjs/examples/shared-elements/
 ---
 
 <script src="{{ site.baseurl }}bower_components/yjs/y.js"></script>
-<script src="{{ site.baseurl }}bower_components/y-connectors/y-xmpp/y-xmpp.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-xmpp/y-xmpp.js"></script>
 
 <link rel="import" href="{{ site.baseurl }}bower_components/polymer/polymer.html">
 <link rel="import" href="{{ site.baseurl }}bower_components/yjs/y-object.html">
@@ -14,7 +14,7 @@ permalink: /yjs/examples/shared-elements/
 <link rel="import" href="{{ site.baseurl }}elements/radio-example.html">
 
 <script>
-  var connector = new Y.XMPP().join("shared-elements-space");
+  var connector = new Y.XMPP({role: "slave"}).join("shared-elements-new");
   var y = new Y(connector);
 </script>
 
@@ -52,6 +52,9 @@ Here are some examples of shared elements, and how you can realize them. For max
   <textarea id="textarea" style="width: 100%"></textarea>
   <script>
     connector.whenSynced(function(){
+      if(y.val("textarea") == null){
+        y.val("textarea","","mutable");
+      }
       y.val("textarea").bind(document.querySelector("#textarea"))
     })
   </script>
@@ -65,6 +68,9 @@ Here are some examples of shared elements, and how you can realize them. For max
   <b><p contenteditable spellcheck="false" id="html"></p></b>
   <script>
     connector.whenSynced(function(){
+      if(y.val("html") == null){
+        y.val("html","","mutable");
+      }
       y.val("html").bind(document.querySelector("#html"))
     })
   </script>
