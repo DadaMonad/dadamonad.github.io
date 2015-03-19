@@ -2,7 +2,7 @@
 layout: post
 title:  "Yjs Release 0.4"
 date:   2015-02-10 00:56:45
-description: Plans for the 0.4 release
+description: Yjs Release 0.4
 categories:
   - Yjs
 ---

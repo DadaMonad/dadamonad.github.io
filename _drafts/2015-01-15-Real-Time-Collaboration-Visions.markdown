@@ -21,6 +21,7 @@ permalink: real-time-visions
 
 
 ## Visions
+* offline first
 
 
 ### Asynchronous Communication vs. Synchronous Communication
