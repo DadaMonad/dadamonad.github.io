@@ -1,4 +1,4 @@
-<ul>
+<!--ul>
 	<li>
 		<a href="{{ 'blog/' | prepend: site.baseurl | prepend: site.url }}">Blog</a><span>/</span>
 	</li>
@@ -11,16 +11,15 @@
   <li>
 		<a href="{{ 'faq/' | prepend: site.baseurl | prepend: site.url }}">Help</a><span>/</span>
 	</li>
-</ul>
+</ul-->
 
 {% if page.title-picture %}
-
 <div style="position: relative; width: 100%; height: 5em; margin: 1em 0 1em 0">
   <img src="{{page.title-picture | prepend: site.baseurl |prepend: site.url }}" style="height: 5em; position: absolute; margin: 0; left: 50%; bottom: 0; margin-right: -50%; transform: translate(-50%)" />
 </div>
 {% endif %}
 {% if page.page-urls %}
-<ul>
+<ul style="width:60%; margin-left:20%; margin-right: 20%">
   {% for u in page.page-urls %}
     <li>
       {% if u.external_url %}
@@ -32,3 +31,7 @@
   {%endfor %}
 </ul>
 {% endif %}
+
+
+
+

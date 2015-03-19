@@ -1,7 +1,7 @@
 ---
 layout: y-page
 title: About
-permalink: /yjs/
+#permalink: /
 ---
 
 Yjs is a framework for optimistic concurrency control and automatic conflict resolution on arbitrary data types. The framework implements a new OT-like concurrency algorithm and provides similar functionality as [ShareJs] and [OpenCoweb]. Yjs was designed to take away the pain from concurrently editing complex data types like Text, Json, and XML. You can find some applications for this framework [here](https://dadamonad.github.io/yjs/examples).
@@ -37,7 +37,7 @@ Yjs is still in an early development phase. Don't expect that everything is work
 * Custom data types
 
 ## Get help
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/rwth-acis/yjs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/y-js/yjs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 Please report _any_ issues to the [Github issue page](https://github.com/rwth-acis/yjs/issues)! I try to fix them very soon, if possible.
 

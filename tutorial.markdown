@@ -1,7 +1,7 @@
 ---
 layout: y-page
 title: Tutorial
-permalink: /yjs/tutorial/
+permalink: /tutorial/
 ---
 
 This tutorial will give you a good idea on how you can work with Yjs. Check the [documentation](../doc) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](../examples).

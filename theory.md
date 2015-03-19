@@ -1,7 +1,7 @@
 ---
 layout: y-page
 title: Theory
-permalink: /yjs/theory/
+permalink: /theory/
 ---
 Find out more about the concurrent editing problem here
 [Cooperation, Concurrency, Conflicts, and Convergence](http://opencoweb.org/ocwdocs/intro/openg.html) and here
