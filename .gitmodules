@@ -1,3 +1,24 @@
 [submodule "bower_components/meme-together"]
 	path = bower_components/meme-together
 	url = https://github.com/DadaMonad/meme-together.git
+[submodule "bower_components/y-richtext"]
+	path = bower_components/y-richtext
+	url = https://github.com/y-js/y-richtext.git
+[submodule "bower_components/y-selections"]
+	path = bower_components/y-selections
+	url = https://github.com/y-js/y-selections.git
+[submodule "bower_components/y-text"]
+	path = bower_components/y-text
+	url = https://github.com/y-js/y-text.git
+[submodule "bower_components/y-list"]
+	path = bower_components/y-list
+	url = https://github.com/y-js/y-list.git
+[submodule "bower_components/y-xmpp"]
+	path = bower_components/y-xmpp
+	url = https://github.com/y-js/y-xmpp.git
+[submodule "bower_components/y-webrtc"]
+	path = bower_components/y-webrtc
+	url = https://github.com/y-js/y-webrtc.git
+[submodule "bower_components/yjs"]
+	path = bower_components/yjs
+	url = https://github.com/y-js/yjs.git

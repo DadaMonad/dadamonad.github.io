@@ -5,16 +5,18 @@ permalink: /examples/shared-elements/
 ---
 
 <script src="{{ site.baseurl }}bower_components/yjs/y.js"></script>
-<script src="{{ site.baseurl }}bower_components/y-xmpp/y-xmpp.js"></script>
-
 <link rel="import" href="{{ site.baseurl }}bower_components/polymer/polymer.html">
 <link rel="import" href="{{ site.baseurl }}bower_components/yjs/y-object.html">
 <link rel="import" href="{{ site.baseurl }}bower_components/paper-slider/paper-slider.html">
 <link rel="import" href="{{ site.baseurl }}elements/slider-example.html">
 <link rel="import" href="{{ site.baseurl }}elements/radio-example.html">
 
+<script src="{{ site.baseurl }}bower_components/y-xmpp/y-xmpp.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-text/y-text.js"></script>
+
 <script>
   var connector = new Y.XMPP({role: "slave"}).join("shared-elements-new");
+  connector.debug=true;
   var y = new Y(connector);
 </script>
 
@@ -53,13 +55,14 @@ Here are some examples of shared elements, and how you can realize them. For max
   <script>
     connector.whenSynced(function(){
       if(y.val("textarea") == null){
-        y.val("textarea","","mutable");
+        y.val("textarea",new Y.Text(""));
       }
       y.val("textarea").bind(document.querySelector("#textarea"))
     })
   </script>
   {% highlight javascript %}
-    y.val("textarea").bind(document.querySelector("#textarea"))
+y.val("textarea", new Y.Text("some initial text"))
+y.val("textarea").bind(document.querySelector("#textarea"))
   {% endhighlight %}
 </div>
 
@@ -69,13 +72,14 @@ Here are some examples of shared elements, and how you can realize them. For max
   <script>
     connector.whenSynced(function(){
       if(y.val("html") == null){
-        y.val("html","","mutable");
+        y.val("html",new Y.Text(""));
       }
       y.val("html").bind(document.querySelector("#html"))
     })
   </script>
   {% highlight javascript %}
-      y.val("html").bind(document.querySelector("#html-element"))
+y.val("html", new Y.Text("some initial text"))
+y.val("html").bind(document.querySelector("#html-element"))
   {% endhighlight %}
 </div>
 
