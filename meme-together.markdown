@@ -15,4 +15,5 @@ This example works in every recent browser except `IE` (just because it uses pol
     margin-right: auto;
   }
 </style>
-<meme-together syncMethod="master-slave"></meme-together>
+<!--meme-together syncMethod="master-slave"></meme-together-->
+<meme-together syncMethod="syncAll"></meme-together>
