@@ -4,9 +4,9 @@ title: Tutorial
 permalink: /tutorial/
 ---
 
-This tutorial will give you a good idea on how you can work with Yjs. Check the [documentation](../doc) for a detailed instruction on how you can use and install the components that are described here. Also make sure to explore the [examples](../examples).
+This tutorial will give you a good idea on how you can work with Yjs. For detailed instruction on the components that are described here, check the respective repositories. You find a list of all the Yjs modules, and more information about Yjs in the [github wiki](https://github.com/y-js/yjs/wiki).
 
-Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples. If you have any problem, ask a question in the comments section at the bottom of this page.
+Furthermore, you are encouraged to try out everything you find here in your browser console. Try to tinker with some of the examples. If you have any problem, ask a question in the comments section at the bottom of this page.
 
 ### Connectors
 First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. The connector is the interface that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. Therefore, you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. In this tutorial we will use the XMPP connector. But you should check out the WebRTC connector too - it is really fast!
@@ -24,9 +24,8 @@ The XMPP connector defines how to exchange updates through an XMPP multi-user-ch
 #####  Tips:
 
 * Try to pick a random room name, so that it does not collide with another users room name. E.g. "efkdyjd0" - you can generate random room names like this: `(Math.random()+1).toString(36).substring(10)`
-* In production, you can set up a server instance that manages state. It is easy to set up a nodejs server with Yjs (see [server.js](https://github.com/DadaMonad/meme-together/blob/master/server.js) from the meme-together application).
+* Yjs and its modules are do also work with [Node.js](https://nodejs.org/). Therefore, you can use the same code client, and server side.
 * You get the *ids* of all connected users with `connector.connections`. (works only *after* you bound the connector to an instance of Y)
-* Check the [documentation](./doc), to find out more about the different sync methods!
 
 ### Create a shared document
 Now, you can create your shared document, which is an instance of Y (because it is created with the *new* operator). All the changes on the instance of Y will be instantly propagated to the other peers.
@@ -38,14 +37,14 @@ Now, you can create your shared document, which is an instance of Y (because it 
 </script>
 {% endhighlight %}
 
-'y' will inherit all the functionality of the *y-object* class. So the following section will apply to it.
+'y' will inherit all the functionality of the *Y.Object* class. So the following section will apply to it.
 
 ## Y.Object
 In the Yjs project, we strongly distinguish between *data type* and *data structure*. Yjs knows how to handle concurrency on several data structures like HashMaps, Trees, Lists and Graphs. You can create arbitrary complex data types with them. In the [wiki](https://github.com/y-js/yjs/wiki) we list a bunch of types that you can include in your project, and we show you how to create your own types.
 
 The y-object types is the only type that is included in Yjs. It represents a Javascript object, where you can *add*, *update*, and *delete* object-properties. You can even create circular structures, if you want.
 
-##### Set / Delete Properties
+##### Set, and Delete Properties
 
 Add, or update property "name" with value "42":
 
@@ -65,10 +64,10 @@ y.val("myobj", new Y.Object({some_initial_content: "hi there"}))
 console.log(y.val("myobj").val()) // => {some_initial_content: "hi there", new: "string"}
 {% endhighlight %}
 
-Delete the "object" property.
+Delete the "name" property.
 
 {% highlight javascript %}
-y.delete("object")
+y.delete("name")
 {% endhighlight %}
 
 ##### Observe Changes
@@ -87,8 +86,9 @@ y.observe(function(events){
 
 
 ##### Tips:
-
+* Use *tab+enter* to enter the previous code into your browser console
 * Sometimes you want your client to wait, until it is synchronized with all the other clients. Just call `connector.whenSynced(function(){console.log("synchronized")})`
+* Read the documentation of the y-object type on the [github repository](https://github.com/y-js/yjs#yobject)
 
 ## Y.List
 
@@ -112,29 +112,29 @@ console.log(list.val(3)) // => 4
 console.log(list.val()) // => [1,2,3,4]
 {% endhighlight %}
 
-Y.List throws *insert* and *delete* events. Set a listener on the `list` and repeat the previous example.
+Y.List throws *insert* and *delete* events. Set an observer on the `list` and repeat the previous example.
 
 ## Collaborative Text Area
 In order to create a collaborative textarea, you can use the [y-text](https://github.com/y-js/y-text) type. It has some convenient helpers, e.g. for binding it to an arbitrary input element. Try the following in your browser console.
 
 {% highlight javascript %}
 // create a y-text instance
-y.val("shared_text", new Y.Text("content"));
+y.val("text", new Y.Text("content"));
 
 // get the Word-Type
-var shared_text = y.val("shared_text");
+var text = y.val("text");
 
 // get a textarea dom object
 var textarea = document.querySelector("textarea");
 
 // bind the mutable string to the textarea
-shared_text.bind(textarea)
+text.bind(textarea)
 
-console.log(shared_text.val()) // => "content" - retrieve the current value
+console.log(text.val()) // => "content" - retrieve the current value
 
 {% endhighlight %}
 
-Now, the `shared_text` is bound to the `textarea`. This means that the `shared_text` is updated, when you type something in the `textarea`, and the `textarea` is updated when something is inserted into the `shared_text`. This is also known as *two way binding*.
+Now, the `text` is bound to the `textarea`. This means that the `text` is updated, when you type something in the `textarea`, and the `textarea` is updated when something is inserted into the `text`. This is also known as *two way binding*.
 
 <textarea style="width: 100%;height:5em"> Please bind me :)</textarea>
 
@@ -209,6 +209,10 @@ What do **you** want to see next?
 
 
 <script src="{{ site.baseurl }}bower_components/yjs/y.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-list/y-list.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-text/y-text.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-selections/y-selections.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-xml/y-xml.js"></script>
 <script src="{{ site.baseurl }}bower_components/y-xmpp/y-xmpp.js"></script>
 <script src="{{ site.baseurl }}bower_components/y-webrtc/y-webrtc.js"></script>
 <link rel="import" href="{{ site.baseurl }}elements/elements-showoff.html">
@@ -217,12 +221,12 @@ What do **you** want to see next?
 var connector = new Y.XMPP().join("tutorial");
 var y = new Y(connector);
 connector.whenSynced(function(){
-  if(y.val("shared_text") == null){
-    y.val("shared_text","")
+  if(y.val("text") == null){
+    y.val("text","")
     y.val("slider",39)
   }
   var textarea = document.querySelector("#shared-text")
-  y.val("shared_text").bind(textarea)
+  y.val("text").bind(textarea)
   var ce = document.querySelector("elements-showoff");
   ce.val = y
   // document.querySelector("y-object").val = y;

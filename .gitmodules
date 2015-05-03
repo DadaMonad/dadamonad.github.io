@@ -22,3 +22,6 @@
 [submodule "bower_components/meme-together"]
 	path = bower_components/meme-together
 	url = https://github.com/y-js/meme-together.git
+[submodule "bower_components/y-xml"]
+	path = bower_components/y-xml
+	url = https://github.com/y-js/y-xml.git

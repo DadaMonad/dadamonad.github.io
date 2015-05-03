@@ -52,7 +52,12 @@ exclude:
   - .sass-cache
   - Gemfile.lock
   - modules/yjs/node_modules
-  - modules/y-connectors/node_modules
+  - modules/y-list/node_modules
+  - modules/y-xmpp/node_modules
+  - modules/y-webrtc/node_modules
+  - modules/y-selections/node_modules
+  - modules/y-xml/node_modules
+  - modules/y-text/node_modules
   - modules/meme-together/node_modules
 
 # Sass conversion configs
