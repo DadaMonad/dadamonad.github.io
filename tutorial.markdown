@@ -9,7 +9,7 @@ This tutorial will give you a good idea on how you can work with Yjs. Check the 
 Furthermore, you are encouraged to do everything you find here in your browser console. Try to tinker with some of the examples. If you have any problem, ask a question in the comments section at the bottom of this page.
 
 ### Connectors
-First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. A connector is an interfaces that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. You can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. I this tutorial we will use the XMPP connector. But you should check out the WebRTC connector too - it is really fast!
+First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. The connector is the interface that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. Therefore, you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. In this tutorial we will use the XMPP connector. But you should check out the WebRTC connector too - it is really fast!
 
 {% highlight html %}
 <script src="./y-xmpp/y-xmpp.min.js"></script>
@@ -19,7 +19,7 @@ First of all, you have to define how you want your peers to connect to each othe
 </script>
 {% endhighlight %}
 
-The XMPP connector defines how to exchange updates through an XMPP multi-user-chat room ([XEP-0045](http://xmpp.org/extensions/xep-0045.html)).
+The XMPP connector defines how to exchange updates through an XMPP multi-user-chat room ([XEP-0045](http://xmpp.org/extensions/xep-0045.html)). Open now your browser console, and create a connector.
 
 #####  Tips:
 
@@ -28,16 +28,8 @@ The XMPP connector defines how to exchange updates through an XMPP multi-user-ch
 * You get the *ids* of all connected users with `connector.connections`. (works only *after* you bound the connector to an instance of Y)
 * Check the [documentation](./doc), to find out more about the different sync methods!
 
-##### Try it
-Open you browser console, and create a connector:
-
-{% highlight javascript %}
-var connector = new Y.XMPP().join("some-random-room-name");
-console.log(connector.connections) // retrieve the ids of all connected users
-{% endhighlight %}
-
-### Create an instance of Y
-Now, you can create your shared document, which is an instance of Y (created with the *new* operator)
+### Create a shared document
+Now, you can create your shared document, which is an instance of Y (because it is created with the *new* operator). All the changes on the instance of Y will be instantly propagated to the other peers.
 
 {% highlight html %}
 <script src="./yjs/y.js"></script>
@@ -46,35 +38,41 @@ Now, you can create your shared document, which is an instance of Y (created wit
 </script>
 {% endhighlight %}
 
+'y' will inherit all the functionality of the *y-object* class. So the following section will apply to it.
 
-That's it! Now you can work on your shared instance of Y. It represents a JSON object, where every client can *add*, *update*, and *delete* object-properties. Try to create an instance of Y in your browser console and play with it. It is probably most fun if you create another instance of Y in another browser window, so you can see life update in the other browser window.
+## Y.Object
+In the Yjs project, we strongly distinguish between *data type* and *data structure*. Yjs knows how to handle concurrency on several data structures like HashMaps, Trees, Lists and Graphs. You can create arbitrary complex data types with them. In the [wiki](https://github.com/y-js/yjs/wiki) we list a bunch of types that you can include in your project, and we show you how to create your own types.
 
-##### Create Property
+The y-object types is the only type that is included in Yjs. It represents a Javascript object, where you can *add*, *update*, and *delete* object-properties. You can even create circular structures, if you want.
 
-Create, or update property "name" with value "42":
+##### Set / Delete Properties
+
+Add, or update property "name" with value "42":
 
 {% highlight javascript %}
+// set a property
 y.val("name",42)
+// retrieve a property
 console.log(y.val("name")) // => 42
+// retrieve all properties of y
+console.log(y.val()) // => {name: 42}
 {% endhighlight %}
 
-
-Set an object as a property.
+You can set arbitrary objects on a y-object. Just make sure, that it is possible to convert them to a string (e.g. with 'JSON.stringify'). You can create a new Y.Object like this:
 
 {% highlight javascript %}
-y.val("object",{other_object: "hi there"})
-console.log(y.val("object").val("other_object")) // => "hi there"
+y.val("myobj", new Y.Object({some_initial_content: "hi there"}))
+console.log(y.val("myobj").val()) // => {some_initial_content: "hi there", new: "string"}
 {% endhighlight %}
 
-##### Delete Property
-Delete the "object" property. If you have still references to this object, they will be unusable.
+Delete the "object" property.
 
 {% highlight javascript %}
 y.delete("object")
 {% endhighlight %}
 
 ##### Observe Changes
-Every type has its own bunch of events, to that you can listen to. All ObjectTypes can throw *add*, *update*, and *delete* events. The observe pattern in Yjs is very similar to [Object.observe](http://www.html5rocks.com/en/tutorials/es7/observe/?redirect_from_locale=de), an upcoming standard for observing changes on Javascript objects.
+Every type has its own bunch of events, to that you can listen to. All y-objects can throw *add*, *update*, and *delete* events. The observe pattern in Yjs is very similar to [Object.observe](http://www.html5rocks.com/en/tutorials/es7/observe/?redirect_from_locale=de), an upcoming standard for observing changes on Javascript objects.
 
 {% highlight javascript %}
 y.observe(function(events){
@@ -91,30 +89,52 @@ y.observe(function(events){
 ##### Tips:
 
 * Sometimes you want your client to wait, until it is synchronized with all the other clients. Just call `connector.whenSynced(function(){console.log("synchronized")})`
-* At all times, you can retrieve your shared document as a JSON object with `y.toJson()`
 
-### Collaborative Text Area
+## Y.List
 
-When you collaborate on text, you should use the Word type, which handles mutable Strings (In general, Strings are not mutable in Javascript). The Word type has some convenient helpers, e.g. for binding it to an arbitrary input element. Try the following in your browser console.
+You can manage lists with this type. In order to use this type you have to include the y-list library. Learn more about this type [here](https://github.com/y-js/y-list).
+
+##### Insert / Delete Elements
+
+Create a new Y.List:
+{% highlight javascript %}
+y.val("list", new Y.List([1,2,3]))
+{% endhighlight %}
+
+and apply changes to it
+{% highlight javascript %}
+var list = y.val("list");
+// insert 4 at position 3
+list.insert(3,4)
+// retrieve an element
+console.log(list.val(3)) // => 4
+// retrieve the list as an array
+console.log(list.val()) // => [1,2,3,4]
+{% endhighlight %}
+
+Y.List throws *insert* and *delete* events. Set a listener on the `list` and repeat the previous example.
+
+## Collaborative Text Area
+In order to create a collaborative textarea, you can use the [y-text](https://github.com/y-js/y-text) type. It has some convenient helpers, e.g. for binding it to an arbitrary input element. Try the following in your browser console.
 
 {% highlight javascript %}
-// create a mutable String/Word-Type
-y.val("mutable_string", "content", "mutable");
+// create a y-text instance
+y.val("shared_text", new Y.Text("content"));
 
 // get the Word-Type
-var mutable_string = y.val("mutable_string");
+var shared_text = y.val("shared_text");
 
 // get a textarea dom object
 var textarea = document.querySelector("textarea");
 
 // bind the mutable string to the textarea
-mutable_string.bind(textarea)
+shared_text.bind(textarea)
 
-console.log(mutable_string.val()) // => "content" - retrieve the current value
+console.log(shared_text.val()) // => "content" - retrieve the current value
 
 {% endhighlight %}
 
-Now, the *mutable\_string* is bound to the *textarea*. This means that the *mutable\_string* is updated, when you type something in the *textarea*, and the *textarea* is updated when something is inserted into the *mutable\_string*
+Now, the `shared_text` is bound to the `textarea`. This means that the `shared_text` is updated, when you type something in the `textarea`, and the `textarea` is updated when something is inserted into the `shared_text`. This is also known as *two way binding*.
 
 <textarea style="width: 100%;height:5em"> Please bind me :)</textarea>
 
