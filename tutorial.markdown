@@ -12,7 +12,7 @@ Furthermore, you are encouraged to try out everything you find here in your brow
 First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. The connector is the interface that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. Therefore, you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. In this tutorial we will use the XMPP connector. But you should check out the WebRTC connector too - it is really fast!
 
 {% highlight html %}
-<script src="./y-xmpp/y-xmpp.min.js"></script>
+<script src="./y-xmpp/y-xmpp.js"></script>
 <script>
   // Connect to our testing server, and join an XMPP multi user chat room.
   var connector = new Y.XMPP().join("my-awesome-roomname");
