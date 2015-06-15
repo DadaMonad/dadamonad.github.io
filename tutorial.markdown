@@ -4,12 +4,12 @@ title: Tutorial
 permalink: /tutorial/
 ---
 
-This tutorial will give you a good idea on how you can work with Yjs. For detailed instruction on the components that are described here, check the respective repositories. You find a list of all the Yjs modules, and more information about Yjs in the [github wiki](https://github.com/y-js/yjs/wiki).
+This tutorial will give you a good idea on how you can work with Yjs. For detailed instructions on the components that are described here, check the respective repositories. You find a list of all the Yjs modules, and more information about Yjs in the [github wiki](https://github.com/y-js/yjs/wiki).
 
 Furthermore, you are encouraged to try out everything you find here in your browser console. Try to tinker with some of the examples. If you have any problem, ask a question in the comments section at the bottom of this page.
 
 ### Connectors
-First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. The connector is the interface that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. Therefore, you can swith from the XMPP connector to the WebRTC connector by changing only a few lines of code. In this tutorial we will use the XMPP connector. But you should check out the WebRTC connector too - it is really fast!
+First of all, you have to define how you want your peers to connect to each other. Therefore, we introduce the concept of *connectors*. The connector is the interface that defines how your clients communicate with each other. The cool thing in Yjs is, that you can simply interchange different connectors. Therefore, you can switch from the XMPP connector to the WebRTC connector by changing only a few lines of code. In this tutorial we will use the XMPP connector. But you should check out the WebRTC connector too - it is really fast!
 
 {% highlight html %}
 <script src="./y-xmpp/y-xmpp.js"></script>
@@ -25,7 +25,7 @@ First of all, you have to define how you want your peers to connect to each othe
 #####  Tips:
 
 * Try to pick a random room name, so that it does not collide with another users room name. E.g. "efkdyjd0" - you can generate random room names like this: `(Math.random()+1).toString(36).substring(10)`
-* Yjs and its modules are do also work with [Node.js](https://nodejs.org/). Therefore, you can use the same code client, and server side.
+* Yjs and its modules do also work with [Node.js](https://nodejs.org/). Therefore, you can use the same code both on client and server side.
 * You get the *ids* of all connected users with `connector.connections`. (works only *after* you bound the connector to an instance of Y)
 
 ### Create a shared document
@@ -72,7 +72,7 @@ y.delete("name")
 {% endhighlight %}
 
 ##### Observe Changes
-Every type has its own bunch of events, to that you can listen to. All y-objects can throw *add*, *update*, and *delete* events. The observe pattern in Yjs is very similar to [Object.observe](http://www.html5rocks.com/en/tutorials/es7/observe/?redirect_from_locale=de), an upcoming standard for observing changes on Javascript objects.
+Every type has its own bunch of events that you can listen to. All y-objects can throw *add*, *update*, and *delete* events. The observe pattern in Yjs is very similar to [Object.observe](http://www.html5rocks.com/en/tutorials/es7/observe/?redirect_from_locale=de), an upcoming standard for observing changes on Javascript objects.
 
 {% highlight javascript %}
 y.observe(function(events){
@@ -141,7 +141,7 @@ Now, the `text` is bound to the `textarea`. This means that the `text` is update
 
 ### Polymer Elements
 
-I want to make Yjs as easy as possible. When I [stumbled upon Polymer](https://plus.google.com/110297010634240861782/posts/FireNaHeDB6), I was amazed how it can be to create complex applications with just a few linew of code.
+I want to make Yjs as easy as possible. When I [stumbled upon Polymer](https://plus.google.com/110297010634240861782/posts/FireNaHeDB6), I was amazed how easy it can be to create complex applications with just a few lines of code.
 
 <!--div align="center">
 <iframe width="560" style="max-width:100%" height="315" src="//www.youtube.com/embed/svfu9iQ8cyg" frameborder="0" allowfullscreen></iframe>
