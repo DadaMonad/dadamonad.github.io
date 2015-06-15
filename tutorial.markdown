@@ -14,12 +14,13 @@ First of all, you have to define how you want your peers to connect to each othe
 {% highlight html %}
 <script src="./y-xmpp/y-xmpp.js"></script>
 <script>
+  var options = {}; // use default settings
   // Connect to our testing server, and join an XMPP multi user chat room.
-  var connector = new Y.XMPP().join("my-awesome-roomname");
+  var connector = new Y.XMPP(options).join("my-awesome-roomname");
 </script>
 {% endhighlight %}
 
-The XMPP connector defines how to exchange updates through an XMPP multi-user-chat room ([XEP-0045](http://xmpp.org/extensions/xep-0045.html)). Open now your browser console, and create a connector.
+[The XMPP connector](https://github.com/y-js/y-xmpp) defines how to exchange updates through an XMPP multi-user-chat room ([XEP-0045](http://xmpp.org/extensions/xep-0045.html)). If you don't specify the `options` object, then Y.XMPP will connect to an XMPP server that we provide. Open now your browser console, and create a connector.
 
 #####  Tips:
 
