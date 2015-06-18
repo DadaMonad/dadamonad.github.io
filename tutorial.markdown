@@ -139,7 +139,34 @@ Now, the `text` is bound to the `textarea`. This means that the `text` is update
 
 <textarea style="width: 100%;height:5em"> Please bind me :)</textarea>
 
-### Polymer Elements
+### Handling concurrency
+
+In many cases two clients may create the same type at the same time. For example, two browsers could start with the following code:
+
+{% highlight javascript %}
+// create a shared Y.Text type
+y.val("textfield", new Y.Text("My initial Text"));
+// bind the created Y.Text type to a text area
+y.val("textfield").bind(textarea)
+{% endhighlight %}
+
+Of course, only one shared Y.Text type can exist under the same property name. Therefore, one of the Y.Text types is overwritten, and the binding to the textarea is deleted. So we have to make sure to listen to changes on the y object, and bind the "textfield" property to the textfield every time it is overwritten:
+
+{% highlight javascript %}
+y.observe(function(events) {
+  for(var i = 0; i <events.length; i++) {
+    var event = events[i];
+    if(event.name === "textfield" && event.type !== "delete") {
+      y.val("textfield").bind(textfield);
+    }
+  }
+});
+{% endhighlight %}
+
+
+Remember: When it seems that your textarea is no longer shared, check if there still exists a binding to a Y.Text type!
+
+## Polymer Elements
 
 I want to make Yjs as easy as possible. When I [stumbled upon Polymer](https://plus.google.com/110297010634240861782/posts/FireNaHeDB6), I was amazed how easy it can be to create complex applications with just a few lines of code.
 
