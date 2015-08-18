@@ -236,13 +236,13 @@ Manipulate the values of the *y* object, and observe the live changes of the cus
 What do **you** want to see next?
 
 
-<script src="{{ site.baseurl }}bower_components/yjs/y.js"></script>
+<script src="{{ site.baseurl }}bower_components/yjs/build/browser/y.js"></script>
 <script src="{{ site.baseurl }}bower_components/y-list/y-list.js"></script>
 <script src="{{ site.baseurl }}bower_components/y-text/y-text.js"></script>
 <script src="{{ site.baseurl }}bower_components/y-selections/y-selections.js"></script>
 <script src="{{ site.baseurl }}bower_components/y-xml/y-xml.js"></script>
 <script src="{{ site.baseurl }}bower_components/y-xmpp/y-xmpp.js"></script>
-<script src="{{ site.baseurl }}bower_components/y-webrtc/y-webrtc.js"></script>
+<script src="{{ site.baseurl }}bower_components/y-webrtc/build/browser/y-webrtc.js"></script>
 <link rel="import" href="{{ site.baseurl }}elements/elements-showoff.html">
 
 <!--script>
