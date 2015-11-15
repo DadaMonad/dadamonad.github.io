@@ -1,1 +1,113 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="45.057" height="54.244"><defs><linearGradient id="a"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="#ffbd58"/></linearGradient><linearGradient xlink:href="#a" id="b" x1="154.68" y1="517.739" x2="129.678" y2="523.169" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 .25)"/></defs><g font-weight="400" letter-spacing="0" word-spacing="0"><text style="line-height:125%;-inkscape-font-specification:'Century Gothic'" x="112.127" y="539.455" font-size="72" font-family="Century Gothic" fill="url(#b)" transform="translate(-113.498 -500.955)"><tspan x="112.127" y="539.455" style="-inkscape-font-specification:Verdana" font-family="Verdana">y</tspan></text><text style="line-height:125%;-inkscape-font-specification:'Comic Sans MS'" x="135.689" y="545.194" font-size="30" font-family="Comic Sans MS" fill="#7f7f7f" transform="translate(-113.498 -500.955)"><tspan x="135.689" y="545.194" style="-inkscape-font-specification:'Comic Sans MS'">js</tspan></text></g></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="45.05732"
+   height="54.24408"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="yjs.svg"
+   inkscape:export-filename="/home/dmonad/git/yjs-website/app/favicon.ico"
+   inkscape:export-xdpi="53.577412"
+   inkscape:export-ydpi="53.577412">
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient2989">
+      <stop
+         style="stop-color:#ff0000;stop-opacity:1;"
+         offset="0"
+         id="stop2991" />
+      <stop
+         style="stop-color:#ffbd58;stop-opacity:1;"
+         offset="1"
+         id="stop2993" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient2989"
+       id="linearGradient2995"
+       x1="154.6796"
+       y1="517.73895"
+       x2="129.67833"
+       y2="523.16852"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(0,0.25)" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#000000"
+     bordercolor="#ffffff"
+     borderopacity="0"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="7.919596"
+     inkscape:cx="-0.1455743"
+     inkscape:cy="40.074302"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1855"
+     inkscape:window-height="1056"
+     inkscape:window-x="65"
+     inkscape:window-y="24"
+     inkscape:window-maximized="1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     showborder="false"
+     borderlayer="false"
+     inkscape:showpageshadow="false" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-113.49802,-500.95471)">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:72px;line-height:125%;font-family:'Century Gothic';-inkscape-font-specification:'Century Gothic';letter-spacing:0px;word-spacing:0px;fill:url(#linearGradient2995);fill-opacity:1;stroke:none"
+       x="112.12693"
+       y="539.45471"
+       id="text2985"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan2987"
+         x="112.12693"
+         y="539.45471"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Verdana;-inkscape-font-specification:Verdana;fill:url(#linearGradient2995);fill-opacity:1">y</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:30px;line-height:125%;font-family:'Comic Sans MS';-inkscape-font-specification:'Comic Sans MS';letter-spacing:0px;word-spacing:0px;fill:#7f7f7f;fill-opacity:1;stroke:none"
+       x="135.68852"
+       y="545.19397"
+       id="text3765"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3767"
+         x="135.68852"
+         y="545.19397"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:30px;font-family:'Comic Sans MS';-inkscape-font-specification:'Comic Sans MS';fill:#7f7f7f;fill-opacity:1">js</tspan></text>
+  </g>
+</svg>
