@@ -2702,7 +2702,7 @@ module.exports = function (Y /* :any */) {
         return {
           start: null,
           end: null,
-          struct: "List",
+          struct: 'List',
           id: id
         };
       },
@@ -2852,7 +2852,7 @@ module.exports = function (Y /* :any */) {
         return {
           id: id,
           map: {},
-          struct: "Map"
+          struct: 'Map'
         };
       },
       encode: function encode(op) {
@@ -3087,7 +3087,7 @@ module.exports = function (Y /* :any */) {
                 op = Y.Struct[structname].create(id);
 
                 op.type = typedefinition.name;
-                return _context2.delegateYield(this.applyCreatedOperations.call(this, [op]), 't0', 5);
+                return _context2.delegateYield(this.applyCreatedOperations([op]), 't0', 5);
 
               case 5:
                 return _context2.delegateYield(this.getType(id), 't1', 6);
@@ -4831,6 +4831,7 @@ require('./Connectors/Test.js')(Y);
 var requiringModules = {};
 
 module.exports = Y;
+Y.requiringModules = requiringModules;
 
 Y.extend = function (name, value) {
   Y[name] = value;

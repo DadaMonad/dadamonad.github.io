@@ -7022,7 +7022,7 @@ function extend (Y) {
         self.userJoined('server', 'master')
 
         socket.on('yjsEvent', function (message) {
-          if (message.type != null) {
+          if (message.type != null && message.room === options.room) {
             self.receiveMessage('server', message)
           }
         })
@@ -7043,9 +7043,11 @@ function extend (Y) {
       super.reconnect()
     }
     send (uid, message) {
+      message.room = this.options.room
       this.socket.emit('yjsEvent', message)
     }
     broadcast (message) {
+      message.room = this.options.room
       this.socket.emit('yjsEvent', message)
     }
     isDisconnected () {
