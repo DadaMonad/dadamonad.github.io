@@ -8,7 +8,7 @@ Y({
   },
   connector: {
     name: 'websockets-client',
-    room: 'richtext-example19',
+    room: 'richtext-example18',
     debug: true
     //url: 'http://127.0.0.1:1234'
   },
