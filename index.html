@@ -33069,7 +33069,7 @@ module.exports = Array.isArray || function (arr) {
         color: var(--paper-toast-color, #f1f1f1);
         min-height: 48px;
         min-width: 288px;
-        padding: 16px 24px 12px;
+        padding: 16px 24px;
         box-sizing: border-box;
         box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.26);
         border-radius: 2px;
@@ -33084,6 +33084,7 @@ module.exports = Array.isArray || function (arr) {
         opacity: 0;
         -webkit-transform: translateY(100px);
         transform: translateY(100px);
+        @apply(--paper-font-common-base);
       }
 
       :host(.capsule) {
@@ -33169,6 +33170,7 @@ module.exports = Array.isArray || function (arr) {
         },
 
         created: function() {
+          this._autoClose = null;
           Polymer.IronA11yAnnouncer.requestAvailability();
         },
 
@@ -33191,6 +33193,10 @@ module.exports = Array.isArray || function (arr) {
          * Called when the value of `opened` changes.
          */
         _openedChanged: function() {
+          if (this._autoClose !== null) {
+            this.cancelAsync(this._autoClose);
+            this._autoClose = null;
+          }
           if (this.opened) {
             if (currentToast && currentToast !== this) {
               currentToast.close();
@@ -33200,7 +33206,7 @@ module.exports = Array.isArray || function (arr) {
               text: this.text
             });
             if (this._canAutoClose) {
-              this.debounce('close', this.close, this.duration);
+              this._autoClose = this.async(this.close, this.duration);
             }
           } else if (currentToast === this) {
             currentToast = null;
@@ -33239,8 +33245,7 @@ module.exports = Array.isArray || function (arr) {
          * Fired when `paper-toast` is opened.
          *
          * @event 'iron-announce'
-         * @param {Object} detail
-         * @param {String} detail.text The text that will be announced.
+         * @param {{text: string}} detail Contains text that will be announced.
          */
       });
     })();
