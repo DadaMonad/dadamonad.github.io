@@ -1,20 +1,20 @@
 {
-  "name": "y-xmpp",
+  "name": "y-indexeddb",
+  "main": "y-indexeddb.js",
   "version": "0.7.1",
   "homepage": "http://y-js.org",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
   ],
-  "description": "XMPP Connector for Yjs",
-  "main": "y-xmpp.js",
+  "description": "IndexedDB database adapter for Yjs",
   "moduleType": [
     "globals",
     "node"
   ],
   "keywords": [
-    "XMPP",
+    "Yjs",
     "connector",
-    "Yjs"
+    "webrtc"
   ],
   "license": "MIT",
   "ignore": [
