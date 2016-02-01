@@ -51,7 +51,6 @@ module.exports = function (Y/* :any */) {
       this.debug = opts.debug === true
       this.broadcastedHB = false
       this.syncStep2 = Promise.resolve()
-      this.broadcastOpBuffer = []
     }
     reconnect () {
     }
@@ -76,21 +75,19 @@ module.exports = function (Y/* :any */) {
       this.userEventListeners.push(f)
     }
     userLeft (user) {
-      if (this.connections[user] != null) {
-        delete this.connections[user]
-        if (user === this.currentSyncTarget) {
-          this.currentSyncTarget = null
-          this.findNextSyncTarget()
-        }
-        this.syncingClients = this.syncingClients.filter(function (cli) {
-          return cli !== user
+      delete this.connections[user]
+      if (user === this.currentSyncTarget) {
+        this.currentSyncTarget = null
+        this.findNextSyncTarget()
+      }
+      this.syncingClients = this.syncingClients.filter(function (cli) {
+        return cli !== user
+      })
+      for (var f of this.userEventListeners) {
+        f({
+          action: 'userLeft',
+          user: user
         })
-        for (var f of this.userEventListeners) {
-          f({
-            action: 'userLeft',
-            user: user
-          })
-        }
       }
     }
     userJoined (user, role) {
@@ -171,34 +168,6 @@ module.exports = function (Y/* :any */) {
       }
     }
     /*
-      Buffer operations, and broadcast them when ready.
-    */
-    broadcastOps (ops) {
-      ops = ops.map(function (op) {
-        return Y.Struct[op.struct].encode(op)
-      })
-      var self = this
-      function broadcastOperations () {
-        if (self.broadcastOpBuffer.length > 0) {
-          self.broadcast({
-            type: 'update',
-            ops: self.broadcastOpBuffer
-          })
-          self.broadcastOpBuffer = []
-        }
-      }
-      if (this.broadcastOpBuffer.length === 0) {
-        this.broadcastOpBuffer = ops
-        if (this.y.db.transactionInProgress) {
-          this.y.db.whenTransactionsFinished().then(broadcastOperations)
-        } else {
-          setTimeout(broadcastOperations, 0)
-        }
-      } else {
-        this.broadcastOpBuffer = this.broadcastOpBuffer.concat(ops)
-      }
-    }
-    /*
       You received a raw message, and you know that it is intended for Yjs. Then call this function.
     */
     receiveMessage (sender/* :UserId */, message/* :Message */) {
@@ -258,14 +227,15 @@ module.exports = function (Y/* :any */) {
           db.requestTransaction(function * () {
             var ops = yield* this.getOperations(m.stateSet)
             if (ops.length > 0) {
+              var update /* :MessageUpdate */ = {
+                type: 'update',
+                ops: ops
+              }
               if (!broadcastHB) { // TODO: consider to broadcast here..
-                conn.send(sender, {
-                  type: 'update',
-                  ops: ops
-                })
+                conn.send(sender, update)
               } else {
                 // broadcast only once!
-                conn.broadcastOps(ops)
+                conn.broadcast(update)
               }
             }
             defer.resolve()
@@ -287,7 +257,10 @@ module.exports = function (Y/* :any */) {
             return o.struct === 'Delete'
           })
           if (delops.length > 0) {
-            this.broadcastOps(delops)
+            this.broadcast({
+              type: 'update',
+              ops: delops
+            })
           }
         }
         this.y.db.apply(message.ops)
@@ -1433,7 +1406,10 @@ module.exports = function (Y/* :any */) {
       }
       if (!this.store.y.connector.isDisconnected() && send.length > 0) { // TODO: && !this.store.forwardAppliedOperations (but then i don't send delete ops)
         // is connected, and this is not going to be send in addOperation
-        this.store.y.connector.broadcastOps(send)
+        this.store.y.connector.broadcast({
+          type: 'update',
+          ops: send
+        })
       }
     }
 
@@ -1829,7 +1805,10 @@ module.exports = function (Y/* :any */) {
         var ops = deletions.map(function (d) {
           return {struct: 'Delete', target: [d[0], d[1]]}
         })
-        this.store.y.connector.broadcastOps(ops)
+        this.store.y.connector.broadcast({
+          type: 'update',
+          ops: ops
+        })
       }
     }
     * isGarbageCollected (id) {
@@ -1867,7 +1846,10 @@ module.exports = function (Y/* :any */) {
       yield* this.os.put(op)
       if (!this.store.y.connector.isDisconnected() && this.store.forwardAppliedOperations && op.id[0] !== '_') {
         // is connected, and this is not going to be send in addOperation
-        this.store.y.connector.broadcastOps([op])
+        this.store.y.connector.broadcast({
+          type: 'update',
+          ops: [op]
+        })
       }
     }
     * getOperation (id/* :any */)/* :Transaction<any> */ {
@@ -1927,8 +1909,34 @@ module.exports = function (Y/* :any */) {
       })
       return ss
     }
+    * getOperations (startSS) {
+      // TODO: use bounds here!
+      if (startSS == null) {
+        startSS = {}
+      }
+      var ops = []
+
+      var endSV = yield* this.getStateVector()
+      for (var endState of endSV) {
+        var user = endState.user
+        if (user === '_') {
+          continue
+        }
+        var startPos = startSS[user] || 0
+
+        yield* this.os.iterate(this, [user, startPos], [user, Number.MAX_VALUE], function * (op) {
+          ops.push(op)
+        })
+      }
+      var res = []
+      for (var op of ops) {
+        var o = yield* this.makeOperationReady(startSS, op)
+        res.push(o)
+      }
+      return res
+    }
     /*
-      Here, we make all missing operations executable for the receiving user.
+      Here, we make op executable for the receiving user.
 
       Notes:
         startSS: denotes to the SV that the remote user sent
@@ -1963,92 +1971,7 @@ module.exports = function (Y/* :any */) {
             (startSS or currSS.. ?)
             -> Could be necessary when I turn GC again.
             -> Is a bad(ish) idea because it requires more computation
-
-      What we do:
-      * Iterate over all missing operations.
-      * When there is an operation, where the right op is known, send this op all missing ops to the left to the user
-      * I explained above what we have to do with each operation. Here is how we do it efficiently:
-        1. Go to the left until you find either op.origin, or a known operation (let o denote current operation in the iteration)
-        2. Found a known operation -> set op.left = o, and send it to the user. stop
-        3. Found o = op.origin -> set op.left = op.origin, and send it to the user. start again from 1. (set op = o)
-        4. Found some o -> set o.right = op, o.left = o.origin, send it to the user, continue
     */
-    * getOperations (startSS) {
-      // TODO: use bounds here!
-      if (startSS == null) {
-        startSS = {}
-      }
-      var send = []
-
-      var endSV = yield* this.getStateVector()
-      for (var endState of endSV) {
-        var user = endState.user
-        if (user === '_') {
-          continue
-        }
-        var startPos = startSS[user] || 0
-
-        yield* this.os.iterate(this, [user, startPos], [user, Number.MAX_VALUE], function * (op) {
-          op = Y.Struct[op.struct].encode(op)
-          if (op.struct !== 'Insert') {
-            send.push(op)
-          } else if (op.right == null || op.right[1] < (startSS[op.right[0]] || 0)) {
-            // case 1. op.right is known
-            var o = op
-            // Remember: ?
-            // -> set op.right
-            //    1. to the first operation that is known (according to startSS)
-            //    2. or to the first operation that has an origin that is not to the
-            //      right of op.
-            // For this we maintain a list of ops which origins are not found yet.
-            var missing_origins = [op]
-            var newright = op.right
-            while (true) {
-              if (o.left == null) {
-                op.left = null
-                send.push(op)
-                if (!Y.utils.compareIds(o.id, op.id)) {
-                  o = Y.Struct[op.struct].encode(o)
-                  o.right = missing_origins[missing_origins.length - 1].id
-                  send.push(o)
-                }
-                break
-              }
-              o = yield* this.getOperation(o.left)
-              // we set another o, check if we can reduce $missing_origins
-              while (missing_origins.length > 0 && Y.utils.compareIds(missing_origins[missing_origins.length - 1].origin, o.id)) {
-                missing_origins.pop()
-              }
-              if (o.id[1] < (startSS[o.id[0]] || 0)) {
-                // case 2. o is known
-                op.left = o.id
-                send.push(op)
-                break
-              } else if (Y.utils.compareIds(o.id, op.origin)) {
-                // case 3. o is op.origin
-                op.left = op.origin
-                send.push(op)
-                op = Y.Struct[op.struct].encode(o)
-                op.right = newright
-                if (missing_origins.length > 0) {
-                  console.log('This should not happen .. :( please report this')
-                }
-                missing_origins = [op]
-              } else {
-                // case 4. send o, continue to find op.origin
-                var s = Y.Struct[op.struct].encode(o)
-                s.right = missing_origins[missing_origins.length - 1].id
-                s.left = s.origin
-                send.push(s)
-                missing_origins.push(o)
-              }
-            }
-          }
-        })
-      }
-      return send.reverse()
-    }
-    /* this is what we used before.. use this as a reference..
     * makeOperationReady (startSS, op) {
       op = Y.Struct[op.struct].encode(op)
       op = Y.utils.copyObject(op)
@@ -2072,7 +1995,6 @@ module.exports = function (Y/* :any */) {
       op.left = op.origin
       return op
     }
-    */
   }
   Y.Transaction = TransactionInterface
 }
@@ -2403,9 +2325,8 @@ function Y (opts/* :YOptions */) /* :Promise<YConfig> */ {
   Y.sourceDir = opts.sourceDir
   return Y.requestModules(modules).then(function () {
     return new Promise(function (resolve) {
-      var yconfig = new YConfig(opts)
-      yconfig.db.whenUserIdSet(function () {
-        yconfig.init(function () {
+      var yconfig = new YConfig(opts, function () {
+        yconfig.db.whenUserIdSet(function () {
           resolve(yconfig)
         })
       })
@@ -2422,10 +2343,6 @@ class YConfig {
   constructor (opts, callback) {
     this.db = new Y[opts.db.name](this, opts.db)
     this.connector = new Y[opts.connector.name](this, opts.connector)
-    this.options = opts
-  }
-  init (callback) {
-    var opts = this.options
     var share = {}
     this.share = share
     this.db.requestTransaction(function * requestTransaction () {

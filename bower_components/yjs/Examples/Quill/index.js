@@ -4,14 +4,13 @@
 
 Y({
   db: {
-    name: 'memory',
-    namespace: 'richtext-example20'
+    name: 'memory'
   },
   connector: {
     name: 'websockets-client',
-    room: 'richtext-example20'
-    // debug: true,
-    // url: 'http://127.0.0.1:1234'
+    room: 'richtext-example18',
+    debug: true
+    //url: 'http://127.0.0.1:2345'
   },
   sourceDir: '/bower_components',
   share: {
@@ -31,4 +30,3 @@ Y({
   // bind quill to richtext type
   y.share.richtext.bind(window.quill)
 })
-

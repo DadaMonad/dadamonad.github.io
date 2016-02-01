@@ -16,6 +16,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
   <script src="../../web-component-tester/browser.js"></script>
+  <script src="../../test-fixture/test-fixture-mocha.js"></script>
+
+  <link rel="import" href="../../test-fixture/test-fixture.html">
   <link rel="import" href="../paper-drawer-panel.html">
 </head>
 <style>
@@ -58,8 +61,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       test('drawer is hidden by default', function(done) {
         var f, panel, drawer, main;
         f = fixture('left-drawer');
-        drawer = f.$$('#drawer');
-        main = f.$$('#main');
+        drawer = f.querySelector('#drawer');
+        main = f.querySelector('#main');
 
         f.set('forceNarrow', true);
         f._forceNarrowChanged();
@@ -77,8 +80,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       test('right-drawer is hidden by default', function(done) {
         var f, panel, drawer, main;
         f = fixture('right-drawer');
-        drawer = f.$$('#drawer');
-        main = f.$$('#main');
+        drawer = f.querySelector('#drawer');
+        main = f.querySelector('#main');
 
         f.set('forceNarrow', true);
         f._forceNarrowChanged();
@@ -92,11 +95,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       });
 
-     test('drawer can be opened', function(done) {
+     test('drawer is can be opened', function(done) {
         var f, panel, drawer, main;
         f = fixture('left-drawer');
-        drawer = f.$$('#drawer');
-        main = f.$$('#main');
+        drawer = f.querySelector('#drawer');
+        main = f.querySelector('#main');
 
         f.set('forceNarrow', true);
         f._forceNarrowChanged();
@@ -116,8 +119,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       test('right-drawer can be closed', function(done) {
         var f, panel, drawer, main;
         f = fixture('right-drawer');
-        drawer = f.$$('#drawer');
-        main = f.$$('#main');
+        drawer = f.querySelector('#drawer');
+        main = f.querySelector('#main');
 
         f.set('forceNarrow', true);
         f._forceNarrowChanged();
@@ -131,7 +134,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           done();
         });
       });
-
+      
     });
   </script>
 </body>
