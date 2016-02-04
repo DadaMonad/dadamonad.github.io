@@ -30372,7 +30372,1275 @@ exports.version = "1.2.3";
                         window.ace[key] = a[key];
                 });
             })();
-        </script><style>
+        </script><script>define("ace/mode/doc_comment_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(require, exports, module) {
+"use strict";
+
+var oop = require("../lib/oop");
+var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
+
+var DocCommentHighlightRules = function() {
+    this.$rules = {
+        "start" : [ {
+            token : "comment.doc.tag",
+            regex : "@[\\w\\d_]+" // TODO: fix email addresses
+        }, 
+        DocCommentHighlightRules.getTagRule(),
+        {
+            defaultToken : "comment.doc",
+            caseInsensitive: true
+        }]
+    };
+};
+
+oop.inherits(DocCommentHighlightRules, TextHighlightRules);
+
+DocCommentHighlightRules.getTagRule = function(start) {
+    return {
+        token : "comment.doc.tag.storage.type",
+        regex : "\\b(?:TODO|FIXME|XXX|HACK)\\b"
+    };
+}
+
+DocCommentHighlightRules.getStartRule = function(start) {
+    return {
+        token : "comment.doc", // doc comment
+        regex : "\\/\\*(?=\\*)",
+        next  : start
+    };
+};
+
+DocCommentHighlightRules.getEndRule = function (start) {
+    return {
+        token : "comment.doc", // closing comment
+        regex : "\\*\\/",
+        next  : start
+    };
+};
+
+
+exports.DocCommentHighlightRules = DocCommentHighlightRules;
+
+});
+
+define("ace/mode/javascript_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/doc_comment_highlight_rules","ace/mode/text_highlight_rules"], function(require, exports, module) {
+"use strict";
+
+var oop = require("../lib/oop");
+var DocCommentHighlightRules = require("./doc_comment_highlight_rules").DocCommentHighlightRules;
+var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
+var identifierRe = "[a-zA-Z\\$_\u00a1-\uffff][a-zA-Z\\d\\$_\u00a1-\uffff]*\\b";
+
+var JavaScriptHighlightRules = function(options) {
+    var keywordMapper = this.createKeywordMapper({
+        "variable.language":
+            "Array|Boolean|Date|Function|Iterator|Number|Object|RegExp|String|Proxy|"  + // Constructors
+            "Namespace|QName|XML|XMLList|"                                             + // E4X
+            "ArrayBuffer|Float32Array|Float64Array|Int16Array|Int32Array|Int8Array|"   +
+            "Uint16Array|Uint32Array|Uint8Array|Uint8ClampedArray|"                    +
+            "Error|EvalError|InternalError|RangeError|ReferenceError|StopIteration|"   + // Errors
+            "SyntaxError|TypeError|URIError|"                                          +
+            "decodeURI|decodeURIComponent|encodeURI|encodeURIComponent|eval|isFinite|" + // Non-constructor functions
+            "isNaN|parseFloat|parseInt|"                                               +
+            "JSON|Math|"                                                               + // Other
+            "this|arguments|prototype|window|document"                                 , // Pseudo
+        "keyword":
+            "const|yield|import|get|set|" +
+            "break|case|catch|continue|default|delete|do|else|finally|for|function|" +
+            "if|in|instanceof|new|return|switch|throw|try|typeof|let|var|while|with|debugger|" +
+            "__parent__|__count__|escape|unescape|with|__proto__|" +
+            "class|enum|extends|super|export|implements|private|public|interface|package|protected|static",
+        "storage.type":
+            "const|let|var|function",
+        "constant.language":
+            "null|Infinity|NaN|undefined",
+        "support.function":
+            "alert",
+        "constant.language.boolean": "true|false"
+    }, "identifier");
+    var kwBeforeRe = "case|do|else|finally|in|instanceof|return|throw|try|typeof|yield|void";
+
+    var escapedRe = "\\\\(?:x[0-9a-fA-F]{2}|" + // hex
+        "u[0-9a-fA-F]{4}|" + // unicode
+        "u{[0-9a-fA-F]{1,6}}|" + // es6 unicode
+        "[0-2][0-7]{0,2}|" + // oct
+        "3[0-7][0-7]?|" + // oct
+        "[4-7][0-7]?|" + //oct
+        ".)";
+
+    this.$rules = {
+        "no_regex" : [
+            DocCommentHighlightRules.getStartRule("doc-start"),
+            comments("no_regex"),
+            {
+                token : "string",
+                regex : "'(?=.)",
+                next  : "qstring"
+            }, {
+                token : "string",
+                regex : '"(?=.)',
+                next  : "qqstring"
+            }, {
+                token : "constant.numeric", // hex
+                regex : /0(?:[xX][0-9a-fA-F]+|[bB][01]+)\b/
+            }, {
+                token : "constant.numeric", // float
+                regex : /[+-]?\d[\d_]*(?:(?:\.\d*)?(?:[eE][+-]?\d+)?)?\b/
+            }, {
+                token : [
+                    "storage.type", "punctuation.operator", "support.function",
+                    "punctuation.operator", "entity.name.function", "text","keyword.operator"
+                ],
+                regex : "(" + identifierRe + ")(\\.)(prototype)(\\.)(" + identifierRe +")(\\s*)(=)",
+                next: "function_arguments"
+            }, {
+                token : [
+                    "storage.type", "punctuation.operator", "entity.name.function", "text",
+                    "keyword.operator", "text", "storage.type", "text", "paren.lparen"
+                ],
+                regex : "(" + identifierRe + ")(\\.)(" + identifierRe +")(\\s*)(=)(\\s*)(function)(\\s*)(\\()",
+                next: "function_arguments"
+            }, {
+                token : [
+                    "entity.name.function", "text", "keyword.operator", "text", "storage.type",
+                    "text", "paren.lparen"
+                ],
+                regex : "(" + identifierRe +")(\\s*)(=)(\\s*)(function)(\\s*)(\\()",
+                next: "function_arguments"
+            }, {
+                token : [
+                    "storage.type", "punctuation.operator", "entity.name.function", "text",
+                    "keyword.operator", "text",
+                    "storage.type", "text", "entity.name.function", "text", "paren.lparen"
+                ],
+                regex : "(" + identifierRe + ")(\\.)(" + identifierRe +")(\\s*)(=)(\\s*)(function)(\\s+)(\\w+)(\\s*)(\\()",
+                next: "function_arguments"
+            }, {
+                token : [
+                    "storage.type", "text", "entity.name.function", "text", "paren.lparen"
+                ],
+                regex : "(function)(\\s+)(" + identifierRe + ")(\\s*)(\\()",
+                next: "function_arguments"
+            }, {
+                token : [
+                    "entity.name.function", "text", "punctuation.operator",
+                    "text", "storage.type", "text", "paren.lparen"
+                ],
+                regex : "(" + identifierRe + ")(\\s*)(:)(\\s*)(function)(\\s*)(\\()",
+                next: "function_arguments"
+            }, {
+                token : [
+                    "text", "text", "storage.type", "text", "paren.lparen"
+                ],
+                regex : "(:)(\\s*)(function)(\\s*)(\\()",
+                next: "function_arguments"
+            }, {
+                token : "keyword",
+                regex : "(?:" + kwBeforeRe + ")\\b",
+                next : "start"
+            }, {
+                token : ["support.constant"],
+                regex : /that\b/
+            }, {
+                token : ["storage.type", "punctuation.operator", "support.function.firebug"],
+                regex : /(console)(\.)(warn|info|log|error|time|trace|timeEnd|assert)\b/
+            }, {
+                token : keywordMapper,
+                regex : identifierRe
+            }, {
+                token : "punctuation.operator",
+                regex : /[.](?![.])/,
+                next  : "property"
+            }, {
+                token : "keyword.operator",
+                regex : /--|\+\+|\.{3}|===|==|=|!=|!==|<+=?|>+=?|!|&&|\|\||\?\:|[!$%&*+\-~\/^]=?/,
+                next  : "start"
+            }, {
+                token : "punctuation.operator",
+                regex : /[?:,;.]/,
+                next  : "start"
+            }, {
+                token : "paren.lparen",
+                regex : /[\[({]/,
+                next  : "start"
+            }, {
+                token : "paren.rparen",
+                regex : /[\])}]/
+            }, {
+                token: "comment",
+                regex: /^#!.*$/
+            }
+        ],
+        property: [{
+                token : "text",
+                regex : "\\s+"
+            }, {
+                token : [
+                    "storage.type", "punctuation.operator", "entity.name.function", "text",
+                    "keyword.operator", "text",
+                    "storage.type", "text", "entity.name.function", "text", "paren.lparen"
+                ],
+                regex : "(" + identifierRe + ")(\\.)(" + identifierRe +")(\\s*)(=)(\\s*)(function)(?:(\\s+)(\\w+))?(\\s*)(\\()",
+                next: "function_arguments"
+            }, {
+                token : "punctuation.operator",
+                regex : /[.](?![.])/
+            }, {
+                token : "support.function",
+                regex : /(s(?:h(?:ift|ow(?:Mod(?:elessDialog|alDialog)|Help))|croll(?:X|By(?:Pages|Lines)?|Y|To)?|t(?:op|rike)|i(?:n|zeToContent|debar|gnText)|ort|u(?:p|b(?:str(?:ing)?)?)|pli(?:ce|t)|e(?:nd|t(?:Re(?:sizable|questHeader)|M(?:i(?:nutes|lliseconds)|onth)|Seconds|Ho(?:tKeys|urs)|Year|Cursor|Time(?:out)?|Interval|ZOptions|Date|UTC(?:M(?:i(?:nutes|lliseconds)|onth)|Seconds|Hours|Date|FullYear)|FullYear|Active)|arch)|qrt|lice|avePreferences|mall)|h(?:ome|andleEvent)|navigate|c(?:har(?:CodeAt|At)|o(?:s|n(?:cat|textual|firm)|mpile)|eil|lear(?:Timeout|Interval)?|a(?:ptureEvents|ll)|reate(?:StyleSheet|Popup|EventObject))|t(?:o(?:GMTString|S(?:tring|ource)|U(?:TCString|pperCase)|Lo(?:caleString|werCase))|est|a(?:n|int(?:Enabled)?))|i(?:s(?:NaN|Finite)|ndexOf|talics)|d(?:isableExternalCapture|ump|etachEvent)|u(?:n(?:shift|taint|escape|watch)|pdateCommands)|j(?:oin|avaEnabled)|p(?:o(?:p|w)|ush|lugins.refresh|a(?:ddings|rse(?:Int|Float)?)|r(?:int|ompt|eference))|e(?:scape|nableExternalCapture|val|lementFromPoint|x(?:p|ec(?:Script|Command)?))|valueOf|UTC|queryCommand(?:State|Indeterm|Enabled|Value)|f(?:i(?:nd|le(?:ModifiedDate|Size|CreatedDate|UpdatedDate)|xed)|o(?:nt(?:size|color)|rward)|loor|romCharCode)|watch|l(?:ink|o(?:ad|g)|astIndexOf)|a(?:sin|nchor|cos|t(?:tachEvent|ob|an(?:2)?)|pply|lert|b(?:s|ort))|r(?:ou(?:nd|teEvents)|e(?:size(?:By|To)|calc|turnValue|place|verse|l(?:oad|ease(?:Capture|Events)))|andom)|g(?:o|et(?:ResponseHeader|M(?:i(?:nutes|lliseconds)|onth)|Se(?:conds|lection)|Hours|Year|Time(?:zoneOffset)?|Da(?:y|te)|UTC(?:M(?:i(?:nutes|lliseconds)|onth)|Seconds|Hours|Da(?:y|te)|FullYear)|FullYear|A(?:ttention|llResponseHeaders)))|m(?:in|ove(?:B(?:y|elow)|To(?:Absolute)?|Above)|ergeAttributes|a(?:tch|rgins|x))|b(?:toa|ig|o(?:ld|rderWidths)|link|ack))\b(?=\()/
+            }, {
+                token : "support.function.dom",
+                regex : /(s(?:ub(?:stringData|mit)|plitText|e(?:t(?:NamedItem|Attribute(?:Node)?)|lect))|has(?:ChildNodes|Feature)|namedItem|c(?:l(?:ick|o(?:se|neNode))|reate(?:C(?:omment|DATASection|aption)|T(?:Head|extNode|Foot)|DocumentFragment|ProcessingInstruction|E(?:ntityReference|lement)|Attribute))|tabIndex|i(?:nsert(?:Row|Before|Cell|Data)|tem)|open|delete(?:Row|C(?:ell|aption)|T(?:Head|Foot)|Data)|focus|write(?:ln)?|a(?:dd|ppend(?:Child|Data))|re(?:set|place(?:Child|Data)|move(?:NamedItem|Child|Attribute(?:Node)?)?)|get(?:NamedItem|Element(?:sBy(?:Name|TagName|ClassName)|ById)|Attribute(?:Node)?)|blur)\b(?=\()/
+            }, {
+                token :  "support.constant",
+                regex : /(s(?:ystemLanguage|cr(?:ipts|ollbars|een(?:X|Y|Top|Left))|t(?:yle(?:Sheets)?|atus(?:Text|bar)?)|ibling(?:Below|Above)|ource|uffixes|e(?:curity(?:Policy)?|l(?:ection|f)))|h(?:istory|ost(?:name)?|as(?:h|Focus))|y|X(?:MLDocument|SLDocument)|n(?:ext|ame(?:space(?:s|URI)|Prop))|M(?:IN_VALUE|AX_VALUE)|c(?:haracterSet|o(?:n(?:structor|trollers)|okieEnabled|lorDepth|mp(?:onents|lete))|urrent|puClass|l(?:i(?:p(?:boardData)?|entInformation)|osed|asses)|alle(?:e|r)|rypto)|t(?:o(?:olbar|p)|ext(?:Transform|Indent|Decoration|Align)|ags)|SQRT(?:1_2|2)|i(?:n(?:ner(?:Height|Width)|put)|ds|gnoreCase)|zIndex|o(?:scpu|n(?:readystatechange|Line)|uter(?:Height|Width)|p(?:sProfile|ener)|ffscreenBuffering)|NEGATIVE_INFINITY|d(?:i(?:splay|alog(?:Height|Top|Width|Left|Arguments)|rectories)|e(?:scription|fault(?:Status|Ch(?:ecked|arset)|View)))|u(?:ser(?:Profile|Language|Agent)|n(?:iqueID|defined)|pdateInterval)|_content|p(?:ixelDepth|ort|ersonalbar|kcs11|l(?:ugins|atform)|a(?:thname|dding(?:Right|Bottom|Top|Left)|rent(?:Window|Layer)?|ge(?:X(?:Offset)?|Y(?:Offset)?))|r(?:o(?:to(?:col|type)|duct(?:Sub)?|mpter)|e(?:vious|fix)))|e(?:n(?:coding|abledPlugin)|x(?:ternal|pando)|mbeds)|v(?:isibility|endor(?:Sub)?|Linkcolor)|URLUnencoded|P(?:I|OSITIVE_INFINITY)|f(?:ilename|o(?:nt(?:Size|Family|Weight)|rmName)|rame(?:s|Element)|gColor)|E|whiteSpace|l(?:i(?:stStyleType|n(?:eHeight|kColor))|o(?:ca(?:tion(?:bar)?|lName)|wsrc)|e(?:ngth|ft(?:Context)?)|a(?:st(?:M(?:odified|atch)|Index|Paren)|yer(?:s|X)|nguage))|a(?:pp(?:MinorVersion|Name|Co(?:deName|re)|Version)|vail(?:Height|Top|Width|Left)|ll|r(?:ity|guments)|Linkcolor|bove)|r(?:ight(?:Context)?|e(?:sponse(?:XML|Text)|adyState))|global|x|m(?:imeTypes|ultiline|enubar|argin(?:Right|Bottom|Top|Left))|L(?:N(?:10|2)|OG(?:10E|2E))|b(?:o(?:ttom|rder(?:Width|RightWidth|BottomWidth|Style|Color|TopWidth|LeftWidth))|ufferDepth|elow|ackground(?:Color|Image)))\b/
+            }, {
+                token : "identifier",
+                regex : identifierRe
+            }, {
+                regex: "",
+                token: "empty",
+                next: "no_regex"
+            }
+        ],
+        "start": [
+            DocCommentHighlightRules.getStartRule("doc-start"),
+            comments("start"),
+            {
+                token: "string.regexp",
+                regex: "\\/",
+                next: "regex"
+            }, {
+                token : "text",
+                regex : "\\s+|^$",
+                next : "start"
+            }, {
+                token: "empty",
+                regex: "",
+                next: "no_regex"
+            }
+        ],
+        "regex": [
+            {
+                token: "regexp.keyword.operator",
+                regex: "\\\\(?:u[\\da-fA-F]{4}|x[\\da-fA-F]{2}|.)"
+            }, {
+                token: "string.regexp",
+                regex: "/[sxngimy]*",
+                next: "no_regex"
+            }, {
+                token : "invalid",
+                regex: /\{\d+\b,?\d*\}[+*]|[+*$^?][+*]|[$^][?]|\?{3,}/
+            }, {
+                token : "constant.language.escape",
+                regex: /\(\?[:=!]|\)|\{\d+\b,?\d*\}|[+*]\?|[()$^+*?.]/
+            }, {
+                token : "constant.language.delimiter",
+                regex: /\|/
+            }, {
+                token: "constant.language.escape",
+                regex: /\[\^?/,
+                next: "regex_character_class"
+            }, {
+                token: "empty",
+                regex: "$",
+                next: "no_regex"
+            }, {
+                defaultToken: "string.regexp"
+            }
+        ],
+        "regex_character_class": [
+            {
+                token: "regexp.charclass.keyword.operator",
+                regex: "\\\\(?:u[\\da-fA-F]{4}|x[\\da-fA-F]{2}|.)"
+            }, {
+                token: "constant.language.escape",
+                regex: "]",
+                next: "regex"
+            }, {
+                token: "constant.language.escape",
+                regex: "-"
+            }, {
+                token: "empty",
+                regex: "$",
+                next: "no_regex"
+            }, {
+                defaultToken: "string.regexp.charachterclass"
+            }
+        ],
+        "function_arguments": [
+            {
+                token: "variable.parameter",
+                regex: identifierRe
+            }, {
+                token: "punctuation.operator",
+                regex: "[, ]+"
+            }, {
+                token: "punctuation.operator",
+                regex: "$"
+            }, {
+                token: "empty",
+                regex: "",
+                next: "no_regex"
+            }
+        ],
+        "qqstring" : [
+            {
+                token : "constant.language.escape",
+                regex : escapedRe
+            }, {
+                token : "string",
+                regex : "\\\\$",
+                next  : "qqstring"
+            }, {
+                token : "string",
+                regex : '"|$',
+                next  : "no_regex"
+            }, {
+                defaultToken: "string"
+            }
+        ],
+        "qstring" : [
+            {
+                token : "constant.language.escape",
+                regex : escapedRe
+            }, {
+                token : "string",
+                regex : "\\\\$",
+                next  : "qstring"
+            }, {
+                token : "string",
+                regex : "'|$",
+                next  : "no_regex"
+            }, {
+                defaultToken: "string"
+            }
+        ]
+    };
+    
+    
+    if (!options || !options.noES6) {
+        this.$rules.no_regex.unshift({
+            regex: "[{}]", onMatch: function(val, state, stack) {
+                this.next = val == "{" ? this.nextState : "";
+                if (val == "{" && stack.length) {
+                    stack.unshift("start", state);
+                }
+                else if (val == "}" && stack.length) {
+                    stack.shift();
+                    this.next = stack.shift();
+                    if (this.next.indexOf("string") != -1 || this.next.indexOf("jsx") != -1)
+                        return "paren.quasi.end";
+                }
+                return val == "{" ? "paren.lparen" : "paren.rparen";
+            },
+            nextState: "start"
+        }, {
+            token : "string.quasi.start",
+            regex : /`/,
+            push  : [{
+                token : "constant.language.escape",
+                regex : escapedRe
+            }, {
+                token : "paren.quasi.start",
+                regex : /\${/,
+                push  : "start"
+            }, {
+                token : "string.quasi.end",
+                regex : /`/,
+                next  : "pop"
+            }, {
+                defaultToken: "string.quasi"
+            }]
+        });
+        
+        if (!options || !options.noJSX)
+            JSX.call(this);
+    }
+    
+    this.embedRules(DocCommentHighlightRules, "doc-",
+        [ DocCommentHighlightRules.getEndRule("no_regex") ]);
+    
+    this.normalizeRules();
+};
+
+oop.inherits(JavaScriptHighlightRules, TextHighlightRules);
+
+function JSX() {
+    var tagRegex = identifierRe.replace("\\d", "\\d\\-");
+    var jsxTag = {
+        onMatch : function(val, state, stack) {
+            var offset = val.charAt(1) == "/" ? 2 : 1;
+            if (offset == 1) {
+                if (state != this.nextState)
+                    stack.unshift(this.next, this.nextState, 0);
+                else
+                    stack.unshift(this.next);
+                stack[2]++;
+            } else if (offset == 2) {
+                if (state == this.nextState) {
+                    stack[1]--;
+                    if (!stack[1] || stack[1] < 0) {
+                        stack.shift();
+                        stack.shift();
+                    }
+                }
+            }
+            return [{
+                type: "meta.tag.punctuation." + (offset == 1 ? "" : "end-") + "tag-open.xml",
+                value: val.slice(0, offset)
+            }, {
+                type: "meta.tag.tag-name.xml",
+                value: val.substr(offset)
+            }];
+        },
+        regex : "</?" + tagRegex + "",
+        next: "jsxAttributes",
+        nextState: "jsx"
+    };
+    this.$rules.start.unshift(jsxTag);
+    var jsxJsRule = {
+        regex: "{",
+        token: "paren.quasi.start",
+        push: "start"
+    };
+    this.$rules.jsx = [
+        jsxJsRule,
+        jsxTag,
+        {include : "reference"},
+        {defaultToken: "string"}
+    ];
+    this.$rules.jsxAttributes = [{
+        token : "meta.tag.punctuation.tag-close.xml", 
+        regex : "/?>", 
+        onMatch : function(value, currentState, stack) {
+            if (currentState == stack[0])
+                stack.shift();
+            if (value.length == 2) {
+                if (stack[0] == this.nextState)
+                    stack[1]--;
+                if (!stack[1] || stack[1] < 0) {
+                    stack.splice(0, 2);
+                }
+            }
+            this.next = stack[0] || "start";
+            return [{type: this.token, value: value}];
+        },
+        nextState: "jsx"
+    }, 
+    jsxJsRule,
+    comments("jsxAttributes"),
+    {
+        token : "entity.other.attribute-name.xml",
+        regex : tagRegex
+    }, {
+        token : "keyword.operator.attribute-equals.xml",
+        regex : "="
+    }, {
+        token : "text.tag-whitespace.xml",
+        regex : "\\s+"
+    }, {
+        token : "string.attribute-value.xml",
+        regex : "'",
+        stateName : "jsx_attr_q",
+        push : [
+            {token : "string.attribute-value.xml", regex: "'", next: "pop"},
+            {include : "reference"},
+            {defaultToken : "string.attribute-value.xml"}
+        ]
+    }, {
+        token : "string.attribute-value.xml",
+        regex : '"',
+        stateName : "jsx_attr_qq",
+        push : [
+            {token : "string.attribute-value.xml", regex: '"', next: "pop"},
+            {include : "reference"},
+            {defaultToken : "string.attribute-value.xml"}
+        ]
+    },
+    jsxTag
+    ];
+    this.$rules.reference = [{
+        token : "constant.language.escape.reference.xml",
+        regex : "(?:&#[0-9]+;)|(?:&#x[0-9a-fA-F]+;)|(?:&[a-zA-Z0-9_:\\.-]+;)"
+    }];
+}
+
+function comments(next) {
+    return [
+        {
+            token : "comment", // multi line comment
+            regex : /\/\*/,
+            next: [
+                DocCommentHighlightRules.getTagRule(),
+                {token : "comment", regex : "\\*\\/", next : next || "pop"},
+                {defaultToken : "comment", caseInsensitive: true}
+            ]
+        }, {
+            token : "comment",
+            regex : "\\/\\/",
+            next: [
+                DocCommentHighlightRules.getTagRule(),
+                {token : "comment", regex : "$|^", next : next || "pop"},
+                {defaultToken : "comment", caseInsensitive: true}
+            ]
+        }
+    ];
+}
+exports.JavaScriptHighlightRules = JavaScriptHighlightRules;
+});
+
+define("ace/mode/matching_brace_outdent",["require","exports","module","ace/range"], function(require, exports, module) {
+"use strict";
+
+var Range = require("../range").Range;
+
+var MatchingBraceOutdent = function() {};
+
+(function() {
+
+    this.checkOutdent = function(line, input) {
+        if (! /^\s+$/.test(line))
+            return false;
+
+        return /^\s*\}/.test(input);
+    };
+
+    this.autoOutdent = function(doc, row) {
+        var line = doc.getLine(row);
+        var match = line.match(/^(\s*\})/);
+
+        if (!match) return 0;
+
+        var column = match[1].length;
+        var openBracePos = doc.findMatchingBracket({row: row, column: column});
+
+        if (!openBracePos || openBracePos.row == row) return 0;
+
+        var indent = this.$getIndent(doc.getLine(openBracePos.row));
+        doc.replace(new Range(row, 0, row, column-1), indent);
+    };
+
+    this.$getIndent = function(line) {
+        return line.match(/^\s*/)[0];
+    };
+
+}).call(MatchingBraceOutdent.prototype);
+
+exports.MatchingBraceOutdent = MatchingBraceOutdent;
+});
+
+define("ace/mode/behaviour/cstyle",["require","exports","module","ace/lib/oop","ace/mode/behaviour","ace/token_iterator","ace/lib/lang"], function(require, exports, module) {
+"use strict";
+
+var oop = require("../../lib/oop");
+var Behaviour = require("../behaviour").Behaviour;
+var TokenIterator = require("../../token_iterator").TokenIterator;
+var lang = require("../../lib/lang");
+
+var SAFE_INSERT_IN_TOKENS =
+    ["text", "paren.rparen", "punctuation.operator"];
+var SAFE_INSERT_BEFORE_TOKENS =
+    ["text", "paren.rparen", "punctuation.operator", "comment"];
+
+var context;
+var contextCache = {};
+var initContext = function(editor) {
+    var id = -1;
+    if (editor.multiSelect) {
+        id = editor.selection.index;
+        if (contextCache.rangeCount != editor.multiSelect.rangeCount)
+            contextCache = {rangeCount: editor.multiSelect.rangeCount};
+    }
+    if (contextCache[id])
+        return context = contextCache[id];
+    context = contextCache[id] = {
+        autoInsertedBrackets: 0,
+        autoInsertedRow: -1,
+        autoInsertedLineEnd: "",
+        maybeInsertedBrackets: 0,
+        maybeInsertedRow: -1,
+        maybeInsertedLineStart: "",
+        maybeInsertedLineEnd: ""
+    };
+};
+
+var getWrapped = function(selection, selected, opening, closing) {
+    var rowDiff = selection.end.row - selection.start.row;
+    return {
+        text: opening + selected + closing,
+        selection: [
+                0,
+                selection.start.column + 1,
+                rowDiff,
+                selection.end.column + (rowDiff ? 0 : 1)
+            ]
+    };
+};
+
+var CstyleBehaviour = function() {
+    this.add("braces", "insertion", function(state, action, editor, session, text) {
+        var cursor = editor.getCursorPosition();
+        var line = session.doc.getLine(cursor.row);
+        if (text == '{') {
+            initContext(editor);
+            var selection = editor.getSelectionRange();
+            var selected = session.doc.getTextRange(selection);
+            if (selected !== "" && selected !== "{" && editor.getWrapBehavioursEnabled()) {
+                return getWrapped(selection, selected, '{', '}');
+            } else if (CstyleBehaviour.isSaneInsertion(editor, session)) {
+                if (/[\]\}\)]/.test(line[cursor.column]) || editor.inMultiSelectMode) {
+                    CstyleBehaviour.recordAutoInsert(editor, session, "}");
+                    return {
+                        text: '{}',
+                        selection: [1, 1]
+                    };
+                } else {
+                    CstyleBehaviour.recordMaybeInsert(editor, session, "{");
+                    return {
+                        text: '{',
+                        selection: [1, 1]
+                    };
+                }
+            }
+        } else if (text == '}') {
+            initContext(editor);
+            var rightChar = line.substring(cursor.column, cursor.column + 1);
+            if (rightChar == '}') {
+                var matching = session.$findOpeningBracket('}', {column: cursor.column + 1, row: cursor.row});
+                if (matching !== null && CstyleBehaviour.isAutoInsertedClosing(cursor, line, text)) {
+                    CstyleBehaviour.popAutoInsertedClosing();
+                    return {
+                        text: '',
+                        selection: [1, 1]
+                    };
+                }
+            }
+        } else if (text == "\n" || text == "\r\n") {
+            initContext(editor);
+            var closing = "";
+            if (CstyleBehaviour.isMaybeInsertedClosing(cursor, line)) {
+                closing = lang.stringRepeat("}", context.maybeInsertedBrackets);
+                CstyleBehaviour.clearMaybeInsertedClosing();
+            }
+            var rightChar = line.substring(cursor.column, cursor.column + 1);
+            if (rightChar === '}') {
+                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column+1}, '}');
+                if (!openBracePos)
+                     return null;
+                var next_indent = this.$getIndent(session.getLine(openBracePos.row));
+            } else if (closing) {
+                var next_indent = this.$getIndent(line);
+            } else {
+                CstyleBehaviour.clearMaybeInsertedClosing();
+                return;
+            }
+            var indent = next_indent + session.getTabString();
+
+            return {
+                text: '\n' + indent + '\n' + next_indent + closing,
+                selection: [1, indent.length, 1, indent.length]
+            };
+        } else {
+            CstyleBehaviour.clearMaybeInsertedClosing();
+        }
+    });
+
+    this.add("braces", "deletion", function(state, action, editor, session, range) {
+        var selected = session.doc.getTextRange(range);
+        if (!range.isMultiLine() && selected == '{') {
+            initContext(editor);
+            var line = session.doc.getLine(range.start.row);
+            var rightChar = line.substring(range.end.column, range.end.column + 1);
+            if (rightChar == '}') {
+                range.end.column++;
+                return range;
+            } else {
+                context.maybeInsertedBrackets--;
+            }
+        }
+    });
+
+    this.add("parens", "insertion", function(state, action, editor, session, text) {
+        if (text == '(') {
+            initContext(editor);
+            var selection = editor.getSelectionRange();
+            var selected = session.doc.getTextRange(selection);
+            if (selected !== "" && editor.getWrapBehavioursEnabled()) {
+                return getWrapped(selection, selected, '(', ')');
+            } else if (CstyleBehaviour.isSaneInsertion(editor, session)) {
+                CstyleBehaviour.recordAutoInsert(editor, session, ")");
+                return {
+                    text: '()',
+                    selection: [1, 1]
+                };
+            }
+        } else if (text == ')') {
+            initContext(editor);
+            var cursor = editor.getCursorPosition();
+            var line = session.doc.getLine(cursor.row);
+            var rightChar = line.substring(cursor.column, cursor.column + 1);
+            if (rightChar == ')') {
+                var matching = session.$findOpeningBracket(')', {column: cursor.column + 1, row: cursor.row});
+                if (matching !== null && CstyleBehaviour.isAutoInsertedClosing(cursor, line, text)) {
+                    CstyleBehaviour.popAutoInsertedClosing();
+                    return {
+                        text: '',
+                        selection: [1, 1]
+                    };
+                }
+            }
+        }
+    });
+
+    this.add("parens", "deletion", function(state, action, editor, session, range) {
+        var selected = session.doc.getTextRange(range);
+        if (!range.isMultiLine() && selected == '(') {
+            initContext(editor);
+            var line = session.doc.getLine(range.start.row);
+            var rightChar = line.substring(range.start.column + 1, range.start.column + 2);
+            if (rightChar == ')') {
+                range.end.column++;
+                return range;
+            }
+        }
+    });
+
+    this.add("brackets", "insertion", function(state, action, editor, session, text) {
+        if (text == '[') {
+            initContext(editor);
+            var selection = editor.getSelectionRange();
+            var selected = session.doc.getTextRange(selection);
+            if (selected !== "" && editor.getWrapBehavioursEnabled()) {
+                return getWrapped(selection, selected, '[', ']');
+            } else if (CstyleBehaviour.isSaneInsertion(editor, session)) {
+                CstyleBehaviour.recordAutoInsert(editor, session, "]");
+                return {
+                    text: '[]',
+                    selection: [1, 1]
+                };
+            }
+        } else if (text == ']') {
+            initContext(editor);
+            var cursor = editor.getCursorPosition();
+            var line = session.doc.getLine(cursor.row);
+            var rightChar = line.substring(cursor.column, cursor.column + 1);
+            if (rightChar == ']') {
+                var matching = session.$findOpeningBracket(']', {column: cursor.column + 1, row: cursor.row});
+                if (matching !== null && CstyleBehaviour.isAutoInsertedClosing(cursor, line, text)) {
+                    CstyleBehaviour.popAutoInsertedClosing();
+                    return {
+                        text: '',
+                        selection: [1, 1]
+                    };
+                }
+            }
+        }
+    });
+
+    this.add("brackets", "deletion", function(state, action, editor, session, range) {
+        var selected = session.doc.getTextRange(range);
+        if (!range.isMultiLine() && selected == '[') {
+            initContext(editor);
+            var line = session.doc.getLine(range.start.row);
+            var rightChar = line.substring(range.start.column + 1, range.start.column + 2);
+            if (rightChar == ']') {
+                range.end.column++;
+                return range;
+            }
+        }
+    });
+
+    this.add("string_dquotes", "insertion", function(state, action, editor, session, text) {
+        if (text == '"' || text == "'") {
+            initContext(editor);
+            var quote = text;
+            var selection = editor.getSelectionRange();
+            var selected = session.doc.getTextRange(selection);
+            if (selected !== "" && selected !== "'" && selected != '"' && editor.getWrapBehavioursEnabled()) {
+                return getWrapped(selection, selected, quote, quote);
+            } else if (!selected) {
+                var cursor = editor.getCursorPosition();
+                var line = session.doc.getLine(cursor.row);
+                var leftChar = line.substring(cursor.column-1, cursor.column);
+                var rightChar = line.substring(cursor.column, cursor.column + 1);
+                
+                var token = session.getTokenAt(cursor.row, cursor.column);
+                var rightToken = session.getTokenAt(cursor.row, cursor.column + 1);
+                if (leftChar == "\\" && token && /escape/.test(token.type))
+                    return null;
+                
+                var stringBefore = token && /string|escape/.test(token.type);
+                var stringAfter = !rightToken || /string|escape/.test(rightToken.type);
+                
+                var pair;
+                if (rightChar == quote) {
+                    pair = stringBefore !== stringAfter;
+                } else {
+                    if (stringBefore && !stringAfter)
+                        return null; // wrap string with different quote
+                    if (stringBefore && stringAfter)
+                        return null; // do not pair quotes inside strings
+                    var wordRe = session.$mode.tokenRe;
+                    wordRe.lastIndex = 0;
+                    var isWordBefore = wordRe.test(leftChar);
+                    wordRe.lastIndex = 0;
+                    var isWordAfter = wordRe.test(leftChar);
+                    if (isWordBefore || isWordAfter)
+                        return null; // before or after alphanumeric
+                    if (rightChar && !/[\s;,.})\]\\]/.test(rightChar))
+                        return null; // there is rightChar and it isn't closing
+                    pair = true;
+                }
+                return {
+                    text: pair ? quote + quote : "",
+                    selection: [1,1]
+                };
+            }
+        }
+    });
+
+    this.add("string_dquotes", "deletion", function(state, action, editor, session, range) {
+        var selected = session.doc.getTextRange(range);
+        if (!range.isMultiLine() && (selected == '"' || selected == "'")) {
+            initContext(editor);
+            var line = session.doc.getLine(range.start.row);
+            var rightChar = line.substring(range.start.column + 1, range.start.column + 2);
+            if (rightChar == selected) {
+                range.end.column++;
+                return range;
+            }
+        }
+    });
+
+};
+
+    
+CstyleBehaviour.isSaneInsertion = function(editor, session) {
+    var cursor = editor.getCursorPosition();
+    var iterator = new TokenIterator(session, cursor.row, cursor.column);
+    if (!this.$matchTokenType(iterator.getCurrentToken() || "text", SAFE_INSERT_IN_TOKENS)) {
+        var iterator2 = new TokenIterator(session, cursor.row, cursor.column + 1);
+        if (!this.$matchTokenType(iterator2.getCurrentToken() || "text", SAFE_INSERT_IN_TOKENS))
+            return false;
+    }
+    iterator.stepForward();
+    return iterator.getCurrentTokenRow() !== cursor.row ||
+        this.$matchTokenType(iterator.getCurrentToken() || "text", SAFE_INSERT_BEFORE_TOKENS);
+};
+
+CstyleBehaviour.$matchTokenType = function(token, types) {
+    return types.indexOf(token.type || token) > -1;
+};
+
+CstyleBehaviour.recordAutoInsert = function(editor, session, bracket) {
+    var cursor = editor.getCursorPosition();
+    var line = session.doc.getLine(cursor.row);
+    if (!this.isAutoInsertedClosing(cursor, line, context.autoInsertedLineEnd[0]))
+        context.autoInsertedBrackets = 0;
+    context.autoInsertedRow = cursor.row;
+    context.autoInsertedLineEnd = bracket + line.substr(cursor.column);
+    context.autoInsertedBrackets++;
+};
+
+CstyleBehaviour.recordMaybeInsert = function(editor, session, bracket) {
+    var cursor = editor.getCursorPosition();
+    var line = session.doc.getLine(cursor.row);
+    if (!this.isMaybeInsertedClosing(cursor, line))
+        context.maybeInsertedBrackets = 0;
+    context.maybeInsertedRow = cursor.row;
+    context.maybeInsertedLineStart = line.substr(0, cursor.column) + bracket;
+    context.maybeInsertedLineEnd = line.substr(cursor.column);
+    context.maybeInsertedBrackets++;
+};
+
+CstyleBehaviour.isAutoInsertedClosing = function(cursor, line, bracket) {
+    return context.autoInsertedBrackets > 0 &&
+        cursor.row === context.autoInsertedRow &&
+        bracket === context.autoInsertedLineEnd[0] &&
+        line.substr(cursor.column) === context.autoInsertedLineEnd;
+};
+
+CstyleBehaviour.isMaybeInsertedClosing = function(cursor, line) {
+    return context.maybeInsertedBrackets > 0 &&
+        cursor.row === context.maybeInsertedRow &&
+        line.substr(cursor.column) === context.maybeInsertedLineEnd &&
+        line.substr(0, cursor.column) == context.maybeInsertedLineStart;
+};
+
+CstyleBehaviour.popAutoInsertedClosing = function() {
+    context.autoInsertedLineEnd = context.autoInsertedLineEnd.substr(1);
+    context.autoInsertedBrackets--;
+};
+
+CstyleBehaviour.clearMaybeInsertedClosing = function() {
+    if (context) {
+        context.maybeInsertedBrackets = 0;
+        context.maybeInsertedRow = -1;
+    }
+};
+
+
+
+oop.inherits(CstyleBehaviour, Behaviour);
+
+exports.CstyleBehaviour = CstyleBehaviour;
+});
+
+define("ace/mode/folding/cstyle",["require","exports","module","ace/lib/oop","ace/range","ace/mode/folding/fold_mode"], function(require, exports, module) {
+"use strict";
+
+var oop = require("../../lib/oop");
+var Range = require("../../range").Range;
+var BaseFoldMode = require("./fold_mode").FoldMode;
+
+var FoldMode = exports.FoldMode = function(commentRegex) {
+    if (commentRegex) {
+        this.foldingStartMarker = new RegExp(
+            this.foldingStartMarker.source.replace(/\|[^|]*?$/, "|" + commentRegex.start)
+        );
+        this.foldingStopMarker = new RegExp(
+            this.foldingStopMarker.source.replace(/\|[^|]*?$/, "|" + commentRegex.end)
+        );
+    }
+};
+oop.inherits(FoldMode, BaseFoldMode);
+
+(function() {
+    
+    this.foldingStartMarker = /(\{|\[)[^\}\]]*$|^\s*(\/\*)/;
+    this.foldingStopMarker = /^[^\[\{]*(\}|\])|^[\s\*]*(\*\/)/;
+    this.singleLineBlockCommentRe= /^\s*(\/\*).*\*\/\s*$/;
+    this.tripleStarBlockCommentRe = /^\s*(\/\*\*\*).*\*\/\s*$/;
+    this.startRegionRe = /^\s*(\/\*|\/\/)#?region\b/;
+    this._getFoldWidgetBase = this.getFoldWidget;
+    this.getFoldWidget = function(session, foldStyle, row) {
+        var line = session.getLine(row);
+    
+        if (this.singleLineBlockCommentRe.test(line)) {
+            if (!this.startRegionRe.test(line) && !this.tripleStarBlockCommentRe.test(line))
+                return "";
+        }
+    
+        var fw = this._getFoldWidgetBase(session, foldStyle, row);
+    
+        if (!fw && this.startRegionRe.test(line))
+            return "start"; // lineCommentRegionStart
+    
+        return fw;
+    };
+
+    this.getFoldWidgetRange = function(session, foldStyle, row, forceMultiline) {
+        var line = session.getLine(row);
+        
+        if (this.startRegionRe.test(line))
+            return this.getCommentRegionBlock(session, line, row);
+        
+        var match = line.match(this.foldingStartMarker);
+        if (match) {
+            var i = match.index;
+
+            if (match[1])
+                return this.openingBracketBlock(session, match[1], row, i);
+                
+            var range = session.getCommentFoldRange(row, i + match[0].length, 1);
+            
+            if (range && !range.isMultiLine()) {
+                if (forceMultiline) {
+                    range = this.getSectionRange(session, row);
+                } else if (foldStyle != "all")
+                    range = null;
+            }
+            
+            return range;
+        }
+
+        if (foldStyle === "markbegin")
+            return;
+
+        var match = line.match(this.foldingStopMarker);
+        if (match) {
+            var i = match.index + match[0].length;
+
+            if (match[1])
+                return this.closingBracketBlock(session, match[1], row, i);
+
+            return session.getCommentFoldRange(row, i, -1);
+        }
+    };
+    
+    this.getSectionRange = function(session, row) {
+        var line = session.getLine(row);
+        var startIndent = line.search(/\S/);
+        var startRow = row;
+        var startColumn = line.length;
+        row = row + 1;
+        var endRow = row;
+        var maxRow = session.getLength();
+        while (++row < maxRow) {
+            line = session.getLine(row);
+            var indent = line.search(/\S/);
+            if (indent === -1)
+                continue;
+            if  (startIndent > indent)
+                break;
+            var subRange = this.getFoldWidgetRange(session, "all", row);
+            
+            if (subRange) {
+                if (subRange.start.row <= startRow) {
+                    break;
+                } else if (subRange.isMultiLine()) {
+                    row = subRange.end.row;
+                } else if (startIndent == indent) {
+                    break;
+                }
+            }
+            endRow = row;
+        }
+        
+        return new Range(startRow, startColumn, endRow, session.getLine(endRow).length);
+    };
+    this.getCommentRegionBlock = function(session, line, row) {
+        var startColumn = line.search(/\s*$/);
+        var maxRow = session.getLength();
+        var startRow = row;
+        
+        var re = /^\s*(?:\/\*|\/\/|--)#?(end)?region\b/;
+        var depth = 1;
+        while (++row < maxRow) {
+            line = session.getLine(row);
+            var m = re.exec(line);
+            if (!m) continue;
+            if (m[1]) depth--;
+            else depth++;
+
+            if (!depth) break;
+        }
+
+        var endRow = row;
+        if (endRow > startRow) {
+            return new Range(startRow, startColumn, endRow, line.length);
+        }
+    };
+
+}).call(FoldMode.prototype);
+
+});
+
+define("ace/mode/javascript",["require","exports","module","ace/lib/oop","ace/mode/text","ace/mode/javascript_highlight_rules","ace/mode/matching_brace_outdent","ace/range","ace/worker/worker_client","ace/mode/behaviour/cstyle","ace/mode/folding/cstyle"], function(require, exports, module) {
+"use strict";
+
+var oop = require("../lib/oop");
+var TextMode = require("./text").Mode;
+var JavaScriptHighlightRules = require("./javascript_highlight_rules").JavaScriptHighlightRules;
+var MatchingBraceOutdent = require("./matching_brace_outdent").MatchingBraceOutdent;
+var Range = require("../range").Range;
+var WorkerClient = require("../worker/worker_client").WorkerClient;
+var CstyleBehaviour = require("./behaviour/cstyle").CstyleBehaviour;
+var CStyleFoldMode = require("./folding/cstyle").FoldMode;
+
+var Mode = function() {
+    this.HighlightRules = JavaScriptHighlightRules;
+    
+    this.$outdent = new MatchingBraceOutdent();
+    this.$behaviour = new CstyleBehaviour();
+    this.foldingRules = new CStyleFoldMode();
+};
+oop.inherits(Mode, TextMode);
+
+(function() {
+
+    this.lineCommentStart = "//";
+    this.blockComment = {start: "/*", end: "*/"};
+
+    this.getNextLineIndent = function(state, line, tab) {
+        var indent = this.$getIndent(line);
+
+        var tokenizedLine = this.getTokenizer().getLineTokens(line, state);
+        var tokens = tokenizedLine.tokens;
+        var endState = tokenizedLine.state;
+
+        if (tokens.length && tokens[tokens.length-1].type == "comment") {
+            return indent;
+        }
+
+        if (state == "start" || state == "no_regex") {
+            var match = line.match(/^.*(?:\bcase\b.*\:|[\{\(\[])\s*$/);
+            if (match) {
+                indent += tab;
+            }
+        } else if (state == "doc-start") {
+            if (endState == "start" || endState == "no_regex") {
+                return "";
+            }
+            var match = line.match(/^\s*(\/?)\*/);
+            if (match) {
+                if (match[1]) {
+                    indent += " ";
+                }
+                indent += "* ";
+            }
+        }
+
+        return indent;
+    };
+
+    this.checkOutdent = function(state, line, input) {
+        return this.$outdent.checkOutdent(line, input);
+    };
+
+    this.autoOutdent = function(state, doc, row) {
+        this.$outdent.autoOutdent(doc, row);
+    };
+
+    this.createWorker = function(session) {
+        var worker = new WorkerClient(["ace"], "ace/mode/javascript_worker", "JavaScriptWorker");
+        worker.attachToDocument(session.getDocument());
+
+        worker.on("annotate", function(results) {
+            session.setAnnotations(results.data);
+        });
+
+        worker.on("terminate", function() {
+            session.clearAnnotations();
+        });
+
+        return worker;
+    };
+
+    this.$id = "ace/mode/javascript";
+}).call(Mode.prototype);
+
+exports.Mode = Mode;
+});
+</script><script>define("ace/theme/chrome",["require","exports","module","ace/lib/dom"], function(require, exports, module) {
+
+exports.isDark = false;
+exports.cssClass = "ace-chrome";
+exports.cssText = ".ace-chrome .ace_gutter {\
+background: #ebebeb;\
+color: #333;\
+overflow : hidden;\
+}\
+.ace-chrome .ace_print-margin {\
+width: 1px;\
+background: #e8e8e8;\
+}\
+.ace-chrome {\
+background-color: #FFFFFF;\
+color: black;\
+}\
+.ace-chrome .ace_cursor {\
+color: black;\
+}\
+.ace-chrome .ace_invisible {\
+color: rgb(191, 191, 191);\
+}\
+.ace-chrome .ace_constant.ace_buildin {\
+color: rgb(88, 72, 246);\
+}\
+.ace-chrome .ace_constant.ace_language {\
+color: rgb(88, 92, 246);\
+}\
+.ace-chrome .ace_constant.ace_library {\
+color: rgb(6, 150, 14);\
+}\
+.ace-chrome .ace_invalid {\
+background-color: rgb(153, 0, 0);\
+color: white;\
+}\
+.ace-chrome .ace_fold {\
+}\
+.ace-chrome .ace_support.ace_function {\
+color: rgb(60, 76, 114);\
+}\
+.ace-chrome .ace_support.ace_constant {\
+color: rgb(6, 150, 14);\
+}\
+.ace-chrome .ace_support.ace_type,\
+.ace-chrome .ace_support.ace_class\
+.ace-chrome .ace_support.ace_other {\
+color: rgb(109, 121, 222);\
+}\
+.ace-chrome .ace_variable.ace_parameter {\
+font-style:italic;\
+color:#FD971F;\
+}\
+.ace-chrome .ace_keyword.ace_operator {\
+color: rgb(104, 118, 135);\
+}\
+.ace-chrome .ace_comment {\
+color: #236e24;\
+}\
+.ace-chrome .ace_comment.ace_doc {\
+color: #236e24;\
+}\
+.ace-chrome .ace_comment.ace_doc.ace_tag {\
+color: #236e24;\
+}\
+.ace-chrome .ace_constant.ace_numeric {\
+color: rgb(0, 0, 205);\
+}\
+.ace-chrome .ace_variable {\
+color: rgb(49, 132, 149);\
+}\
+.ace-chrome .ace_xml-pe {\
+color: rgb(104, 104, 91);\
+}\
+.ace-chrome .ace_entity.ace_name.ace_function {\
+color: #0000A2;\
+}\
+.ace-chrome .ace_heading {\
+color: rgb(12, 7, 255);\
+}\
+.ace-chrome .ace_list {\
+color:rgb(185, 6, 144);\
+}\
+.ace-chrome .ace_marker-layer .ace_selection {\
+background: rgb(181, 213, 255);\
+}\
+.ace-chrome .ace_marker-layer .ace_step {\
+background: rgb(252, 255, 0);\
+}\
+.ace-chrome .ace_marker-layer .ace_stack {\
+background: rgb(164, 229, 101);\
+}\
+.ace-chrome .ace_marker-layer .ace_bracket {\
+margin: -1px 0 0 -1px;\
+border: 1px solid rgb(192, 192, 192);\
+}\
+.ace-chrome .ace_marker-layer .ace_active-line {\
+background: rgba(0, 0, 0, 0.07);\
+}\
+.ace-chrome .ace_gutter-active-line {\
+background-color : #dcdcdc;\
+}\
+.ace-chrome .ace_marker-layer .ace_selected-word {\
+background: rgb(250, 250, 255);\
+border: 1px solid rgb(200, 200, 250);\
+}\
+.ace-chrome .ace_storage,\
+.ace-chrome .ace_keyword,\
+.ace-chrome .ace_meta.ace_tag {\
+color: rgb(147, 15, 128);\
+}\
+.ace-chrome .ace_string.ace_regex {\
+color: rgb(255, 0, 0)\
+}\
+.ace-chrome .ace_string {\
+color: #1A1AA6;\
+}\
+.ace-chrome .ace_entity.ace_other.ace_attribute-name {\
+color: #994409;\
+}\
+.ace-chrome .ace_indent-guide {\
+background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAAE0lEQVQImWP4////f4bLly//BwAmVgd1/w11/gAAAABJRU5ErkJggg==\") right repeat-y;\
+}\
+";
+
+var dom = require("../lib/dom");
+dom.importCssString(exports.cssText, exports.cssClass);
+});
+</script><style>
 
   /*******************************
             Flex Layout
@@ -44603,6 +45871,8 @@ styles. All other styles should exist as single lines."
 
 
 
+
+
 <script>
 
   Polymer({
@@ -52553,6 +53823,102 @@ module.exports = Array.isArray || function (arr) {
     }
   });
 </script>
+<dom-module id="paper-button" assetpath="bower_components/paper-button/">
+  <template strip-whitespace="">
+
+    <style include="paper-material">
+      :host {
+        display: inline-block;
+        position: relative;
+        box-sizing: border-box;
+        min-width: 5.14em;
+        margin: 0 0.29em;
+        background: transparent;
+        text-align: center;
+        font: inherit;
+        text-transform: uppercase;
+        outline-width: 0;
+        border-radius: 3px;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: pointer;
+        z-index: 0;
+        padding: 0.7em 0.57em;
+
+        @apply(--paper-button);
+      }
+
+      :host([raised].keyboard-focus) {
+        font-weight: bold;
+        @apply(--paper-button-raised-keyboard-focus);
+      }
+
+      :host(:not([raised]).keyboard-focus) {
+        font-weight: bold;
+        @apply(--paper-button-flat-keyboard-focus);
+      }
+
+      :host([disabled]) {
+        background: #eaeaea;
+        color: #a8a8a8;
+        cursor: auto;
+        pointer-events: none;
+
+        @apply(--paper-button-disabled);
+      }
+
+      paper-ripple {
+        color: var(--paper-button-ink-color);
+      }
+
+      :host > ::content * {
+        text-transform: inherit;
+      }
+    </style>
+    <content></content>
+  </template>
+</dom-module>
+
+<script>
+  Polymer({
+    is: 'paper-button',
+
+    behaviors: [
+      Polymer.PaperButtonBehavior
+    ],
+
+    properties: {
+      /**
+       * If true, the button should be styled with a shadow.
+       */
+      raised: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        observer: '_calculateElevation'
+      }
+    },
+
+    _calculateElevation: function() {
+      if (!this.raised) {
+        this._setElevation(0);
+      } else {
+        Polymer.PaperButtonBehaviorImpl._calculateElevation.apply(this);
+      }
+    }
+    /**
+
+    Fired when the animation finishes.
+    This is useful if you want to wait until
+    the ripple animation finishes to perform some action.
+
+    @event transitionend
+    @param {{node: Object}} detail Contains the animated node.
+    */
+  });
+</script>
 <dom-module id="mark-down" assetpath="bower_components/mark-down/">
 
   <style>
@@ -52778,10 +54144,22 @@ module.exports = Array.isArray || function (arr) {
                     z-index:20;
                     background-color: #FFC107;
                   }
-                  .inserted
                 </style><paper-dialog class="code-overlay" entry-animation="scale-up-animation" exit-animation="scale-down-animation" opened="{{examplesAceBindSource}}"><paper-dialog-scrollable><mark-down text="```
 {{examplesAceBindSourceCode}}
-```"></mark-down></paper-dialog-scrollable></paper-dialog><iron-ajax auto="" url="bower_components/yjs/Examples/Ace/index.js" handle-as="text" last-response="{{examplesAceBindSourceCode}}"></iron-ajax><paper-fab icon="code" class="card-action" toggles="true" active="{{examplesAceBindSource}}"></paper-fab><div><div id="ace"></div></div></paper-card><div style="height:25em;"></div></section><section data-route="tutorial"><paper-card elevation="1" heading="Tutorial"><iron-ajax auto="" url="articles/tutorial.md" handle-as="text" last-response="{{tutorialMd}}"></iron-ajax><mark-down class="card-content" text="{{tutorialMd}}"></mark-down></paper-card></section><section data-route="blog"><paper-card elevation="1" heading="Blog posts"><style>
+```"></mark-down></paper-dialog-scrollable></paper-dialog><iron-ajax auto="" url="bower_components/yjs/Examples/Ace/index.js" handle-as="text" last-response="{{examplesAceBindSourceCode}}"></iron-ajax><paper-fab icon="code" class="card-action" toggles="true" active="{{examplesAceBindSource}}"></paper-fab><div><div id="ace"></div></div></paper-card><paper-card elevation="1" heading="" style="padding-left:0; padding-right:0;padding-bottom:0;"><h1 style="padding-left:16px;padding-right:16px;margin-bottom:0;font-size:24px;font-weight:400;"><a target="_blank" href="http://dbis.rwth-aachen.de/3dnrt/Anatomy2.0/src/views/welcome.php">Anatomy 2.0</a></h1><style>
+                  #putAnatomyIframeHere { 
+                    height: 400px;
+                    width: 100%;
+                  }
+                  #putAnatomyIframeHere iframe {
+                    height:100%;
+                    width:100%;
+                    border:none;
+                  }
+                  .unclicked {
+                    background: gray;
+                  }
+                </style><div><div id="putAnatomyIframeHere" class="layout vertical"><paper-button raised="" on-tap="loadAnatomyIframe" style="top:100px; background-color: #FF5252;">Load Demo</paper-button></div></div></paper-card><div style="height:25em;"></div></section><section data-route="tutorial"><paper-card elevation="1" heading="Tutorial"><iron-ajax auto="" url="articles/tutorial.md" handle-as="text" last-response="{{tutorialMd}}"></iron-ajax><mark-down class="card-content" text="{{tutorialMd}}"></mark-down></paper-card></section><section data-route="blog"><paper-card elevation="1" heading="Blog posts"><style>
                 .list {
   padding-top: 12px;
   background-color: white;
@@ -52791,4 +54169,4 @@ module.exports = Array.isArray || function (arr) {
   margin: 12px;
   @apply(--shadow-elevation-2dp);
 }
-                </style><div class="list" role="listbox"><template is="dom-repeat" items="{{blogposts}}"><a href="{{item.url}}"><paper-item><paper-item-body two-line="" class="layout vertical"><div>{{item.title}}</div><div secondary="">{{item.date}}</div></paper-item-body></paper-item></a></template></div></paper-card></section><section data-route="modules"><paper-card elevation="1" heading="Webrtc Connector"><a href="https://github.com/y-js/y-webrtc" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><app-forcegraph graph="{{topologyTotal}}"></app-forcegraph><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionWebrtc}}"></mark-down></paper-card><paper-card elevation="1" heading="Websockets Connector"><a href="https://github.com/y-js/y-websockets-client" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><app-forcegraph graph="{{topologyStar}}"></app-forcegraph><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionWebsockets}}"></mark-down></paper-card><paper-card elevation="1" heading="Xmpp Connector"><a href="https://github.com/y-js/y-xmpp" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><app-forcegraph graph="{{topologyFederated}}"></app-forcegraph><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionXmpp}}"></mark-down></paper-card><paper-card elevation="1" heading="IndexedDB Database Adapter"><a href="https://github.com/y-js/y-indexeddb" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionIndexeddb}}"></mark-down></paper-card><paper-card elevation="1" heading="Memory Database Adapter"><a href="https://github.com/y-js/y-memory" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionMemory}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Map Type"><a href="https://github.com/y-js/y-map" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionMap}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Array Type"><a href="https://github.com/y-js/y-array" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionArray}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Text Type"><a href="https://github.com/y-js/y-text" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionText}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.RichText Type"><a href="https://github.com/y-js/y-richtext" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionRichtext}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Xml Type"><a href="https://github.com/y-js/y-xml" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionXml}}"></mark-down></paper-card></section></iron-pages></div></paper-header-panel></paper-drawer-panel><iron-media-query id="mobile-media-query" query="(max-width: 820px)" query-matches="{{_isMobile}}"></iron-media-query></template><script>!function(e){"use strict";function t(e,t){return{date:e,url:"/article/"+t+".md",title:t}}var n=e.querySelector("#app");n.moduleDescriptionWebrtc="With the WebRTC connector all users exchange changes directly with each other. While WebRTC is not the most reliable connector, messages are propagated with almost no delay.\n\n* Very fast message propagation (not noticeable)\n* Very easy to use\n* Very little server load (you still have to set up a [signaling server](http://www.html5rocks.com/en/tutorials/webrtc/infrastructure/))\n* Not suited for a large amount of collaborators\n* WebRTC is not supported in all browsers, and some have troubles communicating with each other\n* Works only in the browser",n.moduleDescriptionWebsockets="With the websockets connector you can set up a central server that saves changes and communicates with clients.\nThis option is very similar to other shared editing frameworks that require a central server.\nBecause the websocket connector is build on top of [socket.io](socket.io), this connector is a rock solid choice\nif you require high reliability.\n\n* Extremely reliable\n* Very easy to use\n* Some server load\n* You can set up a central server that persists changes\n* Falls back to http-communication, if websockets are not supported\n* Work with nodejs and in the browser",n.moduleDescriptionXmpp="XMPP is a well known federated protocol to exchange data. This is definitely an interesting choice if you require high scalability.\n\n* Can act as a Connector for a scaling number of users\n* Sophisticated Rights Management\n* Federated\n* Works with nodejs and in the browser",n.moduleDescriptionIndexeddb="Use the IndexedDB database adapter to store your shared data\npersistently in the browser. The next time you join the session,\nyour changes will still be there.\n\n* Minimizes the amount of data exchanged between server and client\n* Makes offline editing possible\n* Not supported by all browsers",n.moduleDescriptionMemory="Use the Memory database adapter to store your shared data\nefficiently in-memory. The next time you join the session,\nyour changes will be lost\n\n* Supported by all browsers",n.moduleDescriptionMap="Use the Y.Map type to map key-value pairs.\n```\n// Create a new Y.Map type\ny.share.map.set('new map type', Y.Map).then(function (map) {\n  // Observe the map type\n  map.observePath(['my value'], function (value) {\n    console.log(\"You created a new value:\", value)\n  })\n  // Now we create a new property\n  map.set('my value', 42) // => \"You created a new value: 42\"\n  // And retrieve the value\n  map.get('my value') // => 42\n})\n```",n.moduleDescriptionArray='Use the Y.Array type to handle shared lists of data.\n```\n// Observe the array type\ny.share.array.observe(function (events) {\n  for (var i = 0; i < events.length; i++) {\n    console.log("New event: ", events[i])\n  }\n})\ny.share.array.insert(0, [1])\n  // => "New event: {type: "Insert", position: 0, value: 1}"\ny.share.array.delete(0, 1)\n  // => "New event: {type: "Delete", position: 0, length: 1}"\n```',n.moduleDescriptionText='Use the Y.Text type to share text content, and bind it to\narbitrary input elements (E.g. input, textarea, or any element that has the *contenteditable* property)\n```\n// bind text to the first p element that is contenteditable\ny.share.text.bind(document.querySelector("p[contenteditable]"))\n```',n.moduleDescriptionRichtext='Use the Y.RichText type to share rich text, and bind it to\n  the [quill editor](http://quilljs.com/).\n\n```\n// bind richtext to an instance of quill\ny.share.richtext.bind(document.querySelector("quill"))\n```',n.moduleDescriptionXml="Use the Y.Xml type to share XML content, and bind it to\nthe the browser DOM to observe the real-time changes\n\n**NOTE:** This type is currently migrating and not available in yjs@1.0.*\n```\n// create a DOM double binding\nvar shared_dom = y.share.xml.getDOM()\n// and append it to the body\ndocument.body.append(shared_dom)\n```",n.blogposts=[t("19 November 2015","Yjs Release 0.6"),t("13 May 2015","Yjs Release 0.5"),t("10 February 2015","Yjs Release 0.4")],n.blogpostUrlToName=function(e){return e=e.split("/"),e[e.length-1].slice(0,-3)},n.displayInstalledToast=function(){e.querySelector("platinum-sw-cache").disabled||e.querySelector("#caching-complete").show()},n.addEventListener("dom-change",function(){function t(t){var n=e.createElement("script");n.src=t,e.head.appendChild(n)}console.log("Our app is ready to rock!");var r=e.getElementById("mainToolbar");n._isMobile?r.classList.remove("tall"):r.classList.add("tall"),t("./bower_components/yjs/Examples/Textarea/index.js"),t("./bower_components/yjs/Examples/Jigsaw/index.js"),t("./bower_components/yjs/Examples/Chat/index.js"),t("./bower_components/yjs/Examples/Ace/index.js"),t("./bower_components/yjs/Examples/Quill/index.js")}),window.addEventListener("WebComponentsReady",function(){}),addEventListener("paper-header-transform",function(t){var n=e.querySelector("#mainToolbar .app-name"),r=e.querySelector("#mainToolbar .middle-container"),o=e.querySelector("#mainToolbar .bottom-container"),a=t.detail,s=a.height-a.condensedHeight,i=Math.min(1,a.y/s),l=.5,c=Math.max(l,(s-a.y)/(s/(1-l))+l),u=1-i;Polymer.Base.transform("translate3d(0,"+100*i+"%,0)",r),Polymer.Base.transform("scale("+u+") translateZ(0)",o),Polymer.Base.transform("scale("+c+") translateZ(0)",n)}),n.onDataRouteClick=function(){var t=e.querySelector("#paperDrawerPanel");t.narrow&&t.closeDrawer()},n.scrollPageToTop=function(){e.getElementById("mainContainer").scrollTop=0},n.getMainMode=function(e){return e?"scroll":"cover"},n.properties._isMobile={type:String,notify:!0,observer:"setMainToolbarClass"},n.setMainToolbarClass=function(t){var r=e.getElementById("mainToolbar");return null==r?void(n.initialToolbarClass=t?"":"tall"):void(t?r.classList.remove("tall"):r.classList.add("tall"))},n.topologyTotal={nodes:[{name:"Client 1",group:1},{name:"Client 2",group:2},{name:"Client 3",group:3},{name:"Client 4",group:4},{name:"Client 5",group:5},{name:"Client 6",group:6}],links:[{source:0,target:0},{source:0,target:1},{source:0,target:2},{source:0,target:3},{source:0,target:4},{source:0,target:5},{source:1,target:1},{source:1,target:2},{source:1,target:3},{source:1,target:4},{source:1,target:5},{source:2,target:2},{source:2,target:3},{source:2,target:4},{source:2,target:5},{source:3,target:3},{source:3,target:4},{source:3,target:5},{source:4,target:4},{source:4,target:5}]},n.topologyStar={nodes:[{name:"Server",group:1},{name:"Client 1",group:0},{name:"Client 2",group:0},{name:"Client 3",group:0},{name:"Client 4",group:0},{name:"Client 5",group:0},{name:"Client 6",group:0}],links:[{source:0,target:1},{source:0,target:2},{source:0,target:3},{source:0,target:4},{source:0,target:5},{source:0,target:6}]},n.topologyFederated={nodes:[{name:"XMPP Server",group:1},{name:"XMPP Server",group:2},{name:"XMPP Server",group:3},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0}],links:[{source:0,target:3},{source:0,target:4},{source:1,target:5},{source:2,target:6},{source:2,target:7},{source:2,target:8},{source:0,target:1},{source:0,target:2},{source:1,target:2}]}}(document);</script></body></html>
+                </style><div class="list" role="listbox"><template is="dom-repeat" items="{{blogposts}}"><a href="{{item.url}}"><paper-item><paper-item-body two-line="" class="layout vertical"><div>{{item.title}}</div><div secondary="">{{item.date}}</div></paper-item-body></paper-item></a></template></div></paper-card></section><section data-route="modules"><paper-card elevation="1" heading="Webrtc Connector"><a href="https://github.com/y-js/y-webrtc" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><app-forcegraph graph="{{topologyTotal}}"></app-forcegraph><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionWebrtc}}"></mark-down></paper-card><paper-card elevation="1" heading="Websockets Connector"><a href="https://github.com/y-js/y-websockets-client" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><app-forcegraph graph="{{topologyStar}}"></app-forcegraph><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionWebsockets}}"></mark-down></paper-card><paper-card elevation="1" heading="Xmpp Connector"><a href="https://github.com/y-js/y-xmpp" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><app-forcegraph graph="{{topologyFederated}}"></app-forcegraph><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionXmpp}}"></mark-down></paper-card><paper-card elevation="1" heading="IndexedDB Database Adapter"><a href="https://github.com/y-js/y-indexeddb" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionIndexeddb}}"></mark-down></paper-card><paper-card elevation="1" heading="Memory Database Adapter"><a href="https://github.com/y-js/y-memory" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionMemory}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Map Type"><a href="https://github.com/y-js/y-map" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionMap}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Array Type"><a href="https://github.com/y-js/y-array" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionArray}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Text Type"><a href="https://github.com/y-js/y-text" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionText}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.RichText Type"><a href="https://github.com/y-js/y-richtext" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionRichtext}}"></mark-down></paper-card><paper-card elevation="1" heading="Y.Xml Type"><a href="https://github.com/y-js/y-xml" target="_blank"><paper-fab src="images/GitHub-Mark/PNG/GitHub-Mark-32px.png" class="card-action"></paper-fab></a><mark-down class="card-content" style="margin:0;padding:0;" text="{{moduleDescriptionXml}}"></mark-down></paper-card></section></iron-pages></div></paper-header-panel></paper-drawer-panel><iron-media-query id="mobile-media-query" query="(max-width: 820px)" query-matches="{{_isMobile}}"></iron-media-query></template><script>!function(e){"use strict";function t(e,t){return{date:e,url:"/article/"+t+".md",title:t}}var r=e.querySelector("#app");r.moduleDescriptionWebrtc="With the WebRTC connector all users exchange changes directly with each other. While WebRTC is not the most reliable connector, messages are propagated with almost no delay.\n\n* Very fast message propagation (not noticeable)\n* Very easy to use\n* Very little server load (you still have to set up a [signaling server](http://www.html5rocks.com/en/tutorials/webrtc/infrastructure/))\n* Not suited for a large amount of collaborators\n* WebRTC is not supported in all browsers, and some have troubles communicating with each other\n* Works only in the browser",r.moduleDescriptionWebsockets="With the websockets connector you can set up a central server that saves changes and communicates with clients.\nThis option is very similar to other shared editing frameworks that require a central server.\nBecause the websocket connector is build on top of [socket.io](socket.io), this connector is a rock solid choice\nif you require high reliability.\n\n* Extremely reliable\n* Very easy to use\n* Some server load\n* You can set up a central server that persists changes\n* Falls back to http-communication, if websockets are not supported\n* Work with nodejs and in the browser",r.moduleDescriptionXmpp="XMPP is a well known federated protocol to exchange data. This is definitely an interesting choice if you require high scalability.\n\n* Can act as a Connector for a scaling number of users\n* Sophisticated Rights Management\n* Federated\n* Works with nodejs and in the browser",r.moduleDescriptionIndexeddb="Use the IndexedDB database adapter to store your shared data\npersistently in the browser. The next time you join the session,\nyour changes will still be there.\n\n* Minimizes the amount of data exchanged between server and client\n* Makes offline editing possible\n* Not supported by all browsers",r.moduleDescriptionMemory="Use the Memory database adapter to store your shared data\nefficiently in-memory. The next time you join the session,\nyour changes will be lost\n\n* Supported by all browsers",r.moduleDescriptionMap="Use the Y.Map type to map key-value pairs.\n```\n// Create a new Y.Map type\ny.share.map.set('new map type', Y.Map).then(function (map) {\n  // Observe the map type\n  map.observePath(['my value'], function (value) {\n    console.log(\"You created a new value:\", value)\n  })\n  // Now we create a new property\n  map.set('my value', 42) // => \"You created a new value: 42\"\n  // And retrieve the value\n  map.get('my value') // => 42\n})\n```",r.moduleDescriptionArray='Use the Y.Array type to handle shared lists of data.\n```\n// Observe the array type\ny.share.array.observe(function (events) {\n  for (var i = 0; i < events.length; i++) {\n    console.log("New event: ", events[i])\n  }\n})\ny.share.array.insert(0, [1])\n  // => "New event: {type: "Insert", position: 0, value: 1}"\ny.share.array.delete(0, 1)\n  // => "New event: {type: "Delete", position: 0, length: 1}"\n```',r.moduleDescriptionText='Use the Y.Text type to share text content, and bind it to\narbitrary input elements (E.g. input, textarea, or any element that has the *contenteditable* property)\n```\n// bind text to the first p element that is contenteditable\ny.share.text.bind(document.querySelector("p[contenteditable]"))\n```',r.moduleDescriptionRichtext='Use the Y.RichText type to share rich text, and bind it to\n  the [quill editor](http://quilljs.com/).\n\n```\n// bind richtext to an instance of quill\ny.share.richtext.bind(document.querySelector("quill"))\n```',r.moduleDescriptionXml="Use the Y.Xml type to share XML content, and bind it to\nthe the browser DOM to observe the real-time changes\n\n**NOTE:** This type is currently migrating and not available in yjs@1.0.*\n```\n// create a DOM double binding\nvar shared_dom = y.share.xml.getDOM()\n// and append it to the body\ndocument.body.append(shared_dom)\n```",r.blogposts=[t("19 November 2015","Yjs Release 0.6"),t("13 May 2015","Yjs Release 0.5"),t("10 February 2015","Yjs Release 0.4")],r.blogpostUrlToName=function(e){return e=e.split("/"),e[e.length-1].slice(0,-3)},r.displayInstalledToast=function(){e.querySelector("platinum-sw-cache").disabled||e.querySelector("#caching-complete").show()},r.addEventListener("dom-change",function(){function t(t){var r=e.createElement("script");r.src=t,e.head.appendChild(r)}console.log("Our app is ready to rock!");var n=e.getElementById("mainToolbar");r._isMobile?n.classList.remove("tall"):n.classList.add("tall"),t("./bower_components/yjs/Examples/Textarea/index.js"),t("./bower_components/yjs/Examples/Jigsaw/index.js"),t("./bower_components/yjs/Examples/Chat/index.js"),t("./bower_components/yjs/Examples/Ace/index.js"),t("./bower_components/yjs/Examples/Quill/index.js")}),window.addEventListener("WebComponentsReady",function(){}),addEventListener("paper-header-transform",function(t){var r=e.querySelector("#mainToolbar .app-name"),n=e.querySelector("#mainToolbar .middle-container"),o=e.querySelector("#mainToolbar .bottom-container"),a=t.detail,s=a.height-a.condensedHeight,i=Math.min(1,a.y/s),l=.5,c=Math.max(l,(s-a.y)/(s/(1-l))+l),u=1-i;Polymer.Base.transform("translate3d(0,"+100*i+"%,0)",n),Polymer.Base.transform("scale("+u+") translateZ(0)",o),Polymer.Base.transform("scale("+c+") translateZ(0)",r)}),r.onDataRouteClick=function(){var t=e.querySelector("#paperDrawerPanel");t.narrow&&t.closeDrawer()},r.scrollPageToTop=function(){e.getElementById("mainContainer").scrollTop=0},r.getMainMode=function(e){return e?"scroll":"cover"},r.properties._isMobile={type:String,notify:!0,observer:"setMainToolbarClass"},r.setMainToolbarClass=function(t){var n=e.getElementById("mainToolbar");return null==n?void(r.initialToolbarClass=t?"":"tall"):void(t?n.classList.remove("tall"):n.classList.add("tall"))};var n=!1;r.loadAnatomyIframe=function(){if(!n){n=!0;for(var t=e.querySelector("#putAnatomyIframeHere");null!=t.children[0];)t.children[0].remove();var r=e.createElement("iframe");r.setAttribute("src","http://dbis.rwth-aachen.de/3dnrt/yjs_demo/"),t.appendChild(r)}},r.topologyTotal={nodes:[{name:"Client 1",group:1},{name:"Client 2",group:2},{name:"Client 3",group:3},{name:"Client 4",group:4},{name:"Client 5",group:5},{name:"Client 6",group:6}],links:[{source:0,target:0},{source:0,target:1},{source:0,target:2},{source:0,target:3},{source:0,target:4},{source:0,target:5},{source:1,target:1},{source:1,target:2},{source:1,target:3},{source:1,target:4},{source:1,target:5},{source:2,target:2},{source:2,target:3},{source:2,target:4},{source:2,target:5},{source:3,target:3},{source:3,target:4},{source:3,target:5},{source:4,target:4},{source:4,target:5}]},r.topologyStar={nodes:[{name:"Server",group:1},{name:"Client 1",group:0},{name:"Client 2",group:0},{name:"Client 3",group:0},{name:"Client 4",group:0},{name:"Client 5",group:0},{name:"Client 6",group:0}],links:[{source:0,target:1},{source:0,target:2},{source:0,target:3},{source:0,target:4},{source:0,target:5},{source:0,target:6}]},r.topologyFederated={nodes:[{name:"XMPP Server",group:1},{name:"XMPP Server",group:2},{name:"XMPP Server",group:3},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0},{name:"Client",group:0}],links:[{source:0,target:3},{source:0,target:4},{source:1,target:5},{source:2,target:6},{source:2,target:7},{source:2,target:8},{source:0,target:1},{source:0,target:2},{source:1,target:2}]}}(document);</script></body></html>
