@@ -51,6 +51,7 @@ module.exports = function (Y/* :any */) {
       this.debug = opts.debug === true
       this.broadcastedHB = false
       this.syncStep2 = Promise.resolve()
+      this.broadcastOpBuffer = []
     }
     reconnect () {
     }
@@ -75,19 +76,21 @@ module.exports = function (Y/* :any */) {
       this.userEventListeners.push(f)
     }
     userLeft (user) {
-      delete this.connections[user]
-      if (user === this.currentSyncTarget) {
-        this.currentSyncTarget = null
-        this.findNextSyncTarget()
-      }
-      this.syncingClients = this.syncingClients.filter(function (cli) {
-        return cli !== user
-      })
-      for (var f of this.userEventListeners) {
-        f({
-          action: 'userLeft',
-          user: user
+      if (this.connections[user] != null) {
+        delete this.connections[user]
+        if (user === this.currentSyncTarget) {
+          this.currentSyncTarget = null
+          this.findNextSyncTarget()
+        }
+        this.syncingClients = this.syncingClients.filter(function (cli) {
+          return cli !== user
         })
+        for (var f of this.userEventListeners) {
+          f({
+            action: 'userLeft',
+            user: user
+          })
+        }
       }
     }
     userJoined (user, role) {
@@ -168,6 +171,34 @@ module.exports = function (Y/* :any */) {
       }
     }
     /*
+      Buffer operations, and broadcast them when ready.
+    */
+    broadcastOps (ops) {
+      ops = ops.map(function (op) {
+        return Y.Struct[op.struct].encode(op)
+      })
+      var self = this
+      function broadcastOperations () {
+        if (self.broadcastOpBuffer.length > 0) {
+          self.broadcast({
+            type: 'update',
+            ops: self.broadcastOpBuffer
+          })
+          self.broadcastOpBuffer = []
+        }
+      }
+      if (this.broadcastOpBuffer.length === 0) {
+        this.broadcastOpBuffer = ops
+        if (this.y.db.transactionInProgress) {
+          this.y.db.whenTransactionsFinished().then(broadcastOperations)
+        } else {
+          setTimeout(broadcastOperations, 0)
+        }
+      } else {
+        this.broadcastOpBuffer = this.broadcastOpBuffer.concat(ops)
+      }
+    }
+    /*
       You received a raw message, and you know that it is intended for Yjs. Then call this function.
     */
     receiveMessage (sender/* :UserId */, message/* :Message */) {
@@ -227,15 +258,14 @@ module.exports = function (Y/* :any */) {
           db.requestTransaction(function * () {
             var ops = yield* this.getOperations(m.stateSet)
             if (ops.length > 0) {
-              var update /* :MessageUpdate */ = {
-                type: 'update',
-                ops: ops
-              }
               if (!broadcastHB) { // TODO: consider to broadcast here..
-                conn.send(sender, update)
+                conn.send(sender, {
+                  type: 'update',
+                  ops: ops
+                })
               } else {
                 // broadcast only once!
-                conn.broadcast(update)
+                conn.broadcastOps(ops)
               }
             }
             defer.resolve()
@@ -257,10 +287,7 @@ module.exports = function (Y/* :any */) {
             return o.struct === 'Delete'
           })
           if (delops.length > 0) {
-            this.broadcast({
-              type: 'update',
-              ops: delops
-            })
+            this.broadcastOps(delops)
           }
         }
         this.y.db.apply(message.ops)
@@ -554,6 +581,13 @@ module.exports = function (Y /* :any */) {
     */
     constructor (y, opts) {
       this.y = y
+      var os = this
+      this.userId = null
+      var resolve
+      this.userIdPromise = new Promise(function (r) {
+        resolve = r
+      })
+      this.userIdPromise.resolve = resolve
       // whether to broadcast all applied operations (insert & delete hook)
       this.forwardAppliedOperations = false
       // E.g. this.listenersById[id] : Array<Listener>
@@ -575,32 +609,42 @@ module.exports = function (Y /* :any */) {
       // TODO: Use ES7 Weak Maps. This way types that are no longer user,
       // wont be kept in memory.
       this.initializedTypes = {}
-      this.whenUserIdSetListener = null
       this.waitingTransactions = []
       this.transactionInProgress = false
+      this.transactionIsFlushed = false
       if (typeof YConcurrency_TestingMode !== 'undefined') {
         this.executeOrder = []
       }
       this.gc1 = [] // first stage
       this.gc2 = [] // second stage -> after that, remove the op
-      this.gcTimeout = opts.gcTimeout || 5000
-      var os = this
+      this.gcTimeout = opts.gcTimeout || 50000
       function garbageCollect () {
-        return new Promise((resolve) => {
-          os.requestTransaction(function * () {
-            if (os.y.connector != null && os.y.connector.isSynced) {
-              for (var i = 0; i < os.gc2.length; i++) {
-                var oid = os.gc2[i]
-                yield* this.garbageCollectOperation(oid)
-              }
-              os.gc2 = os.gc1
-              os.gc1 = []
-            }
+        return os.whenTransactionsFinished().then(function () {
+          if (os.gc1.length > 0 || os.gc2.length > 0) {
+            return new Promise((resolve) => {
+              os.requestTransaction(function * () {
+                if (os.y.connector != null && os.y.connector.isSynced) {
+                  for (var i = 0; i < os.gc2.length; i++) {
+                    var oid = os.gc2[i]
+                    yield* this.garbageCollectOperation(oid)
+                  }
+                  os.gc2 = os.gc1
+                  os.gc1 = []
+                }
+                // TODO: Use setInterval here instead (when garbageCollect is called several times there will be several timeouts..)
+                if (os.gcTimeout > 0) {
+                  os.gcInterval = setTimeout(garbageCollect, os.gcTimeout)
+                }
+                resolve()
+              })
+            })
+          } else {
+            // TODO: see above
             if (os.gcTimeout > 0) {
               os.gcInterval = setTimeout(garbageCollect, os.gcTimeout)
             }
-            resolve()
-          })
+            return Promise.resolve()
+          }
         })
       }
       this.garbageCollect = garbageCollect
@@ -679,26 +723,20 @@ module.exports = function (Y /* :any */) {
       this.gcInterval = null
     }
     setUserId (userId) {
-      var self = this
-      return new Promise(function (resolve) {
+      if (!this.userIdPromise.inProgress) {
+        this.userIdPromise.inProgress = true
+        var self = this
         self.requestTransaction(function * () {
           self.userId = userId
           var state = yield* this.getState(userId)
           self.opClock = state.clock
-          if (self.whenUserIdSetListener != null) {
-            self.whenUserIdSetListener()
-            self.whenUserIdSetListener = null
-          }
-          resolve()
+          self.userIdPromise.resolve(userId)
         })
-      })
+      }
+      return this.userIdPromise
     }
     whenUserIdSet (f) {
-      if (this.userId != null) {
-        f()
-      } else {
-        this.whenUserIdSetListener = f
-      }
+      this.userIdPromise.then(f)
     }
     getNextOpId () {
       if (this._nextUserId != null) {
@@ -720,8 +758,10 @@ module.exports = function (Y /* :any */) {
     apply (ops) {
       for (var key in ops) {
         var o = ops[key]
-        var required = Y.Struct[o.struct].requiredOps(o)
-        this.whenOperationsExist(required, o)
+        if (o.id == null || o.id[0] !== this.y.connector.userId) {
+          var required = Y.Struct[o.struct].requiredOps(o)
+          this.whenOperationsExist(required, o)
+        }
       }
     }
     /*
@@ -867,7 +907,7 @@ module.exports = function (Y /* :any */) {
           yield* Y.Struct['Delete'].execute.call(transaction, delop)
         }
 
-        // notify parent, if it has been initialized as a custom type
+        // notify parent, if it was instanciated as a custom type
         if (t != null) {
           yield* t._changed(transaction, Y.utils.copyObject(op))
         }
@@ -892,29 +932,36 @@ module.exports = function (Y /* :any */) {
         return Promise.resolve()
       }
     }
+    // Check if there is another transaction request.
+    // * the last transaction is always a flush :)
     getNextRequest () {
       if (this.waitingTransactions.length === 0) {
-        this.transactionInProgress = false
-        if (this.transactionsFinished != null) {
-          this.transactionsFinished.resolve()
-          this.transactionsFinished = null
+        if (this.transactionIsFlushed) {
+          this.transactionInProgress = false
+          this.transactionIsFlushed = false
+          if (this.transactionsFinished != null) {
+            this.transactionsFinished.resolve()
+            this.transactionsFinished = null
+          }
+          return null
+        } else {
+          this.transactionIsFlushed = true
+          return function * () {
+            yield* this.flush()
+          }
         }
-        return null
       } else {
+        this.transactionIsFlushed = false
         return this.waitingTransactions.shift()
       }
     }
     requestTransaction (makeGen/* :any */, callImmediately) {
-      if (true || callImmediately) { // TODO: decide whether this is ok or not..
-        this.waitingTransactions.push(makeGen)
-        if (!this.transactionInProgress) {
-          this.transactionInProgress = true
+      this.waitingTransactions.push(makeGen)
+      if (!this.transactionInProgress) {
+        this.transactionInProgress = true
+        if (false || callImmediately) { // TODO: decide whether this is ok or not..
           this.transact(this.getNextRequest())
-        }
-      } else {
-        this.waitingTransactions.push(makeGen)
-        if (!this.transactionInProgress) {
-          this.transactionInProgress = true
+        } else {
           var self = this
           setTimeout(function () {
             self.transact(self.getNextRequest())
@@ -1055,6 +1102,19 @@ module.exports = function (Y/* :any */) {
       execute: function *(op) {
         var i // loop counter
         var distanceToOrigin = i = yield* Struct.Insert.getDistanceToOrigin.call(this, op) // most cases: 0 (starts from 0)
+
+        if (op.origin != null) { // TODO: !== instead of !=
+          // we save in origin that op originates in it
+          // we need that later when we eventually garbage collect origin (see transaction)
+          var origin = yield* this.getOperation(op.origin)
+          if (origin.originOf == null) {
+            origin.originOf = []
+          }
+          origin.originOf.push(op.id)
+          yield* this.setOperation(origin)
+        }
+
+        // now we begin to insert op in the list of insertions..
         var o
         var parent
         var start
@@ -1406,10 +1466,7 @@ module.exports = function (Y/* :any */) {
       }
       if (!this.store.y.connector.isDisconnected() && send.length > 0) { // TODO: && !this.store.forwardAppliedOperations (but then i don't send delete ops)
         // is connected, and this is not going to be send in addOperation
-        this.store.y.connector.broadcast({
-          type: 'update',
-          ops: send
-        })
+        this.store.y.connector.broadcastOps(send)
       }
     }
 
@@ -1436,7 +1493,7 @@ module.exports = function (Y/* :any */) {
       var callType = false
 
       if (target == null || !target.deleted) {
-        yield* this.markDeleted(targetId)
+        yield* this.markDeleted(targetId, 1)
       }
 
       if (target != null && target.gc == null) {
@@ -1508,86 +1565,124 @@ module.exports = function (Y/* :any */) {
     /*
       Mark an operation as deleted&gc'd
     */
-    * markGarbageCollected (id) {
+    * markGarbageCollected (id, len) {
       // this.mem.push(["gc", id]);
-      var n = yield* this.markDeleted(id)
-      if (!n.gc) {
-        if (n.id[1] < id[1]) {
-          // un-extend left
-          var newlen = n.len - (id[1] - n.id[1])
-          n.len -= newlen
-          yield* this.ds.put(n)
-          n = {id: id, len: newlen, gc: false}
-          yield* this.ds.put(n)
-        }
-        // get prev&next before adding a new operation
-        var prev = yield* this.ds.findPrev(id)
-        var next = yield* this.ds.findNext(id)
-
-        if (id[1] < n.id[1] + n.len - 1) {
-          // un-extend right
-          yield* this.ds.put({id: [id[0], id[1] + 1], len: n.len - 1, gc: false})
-          n.len = 1
-        }
-        // set gc'd
-        n.gc = true
-        // can extend left?
-        if (
-          prev != null &&
-          prev.gc &&
-          Y.utils.compareIds([prev.id[0], prev.id[1] + prev.len], n.id)
-        ) {
-          prev.len += n.len
-          yield* this.ds.delete(n.id)
-          n = prev
-          // ds.put n here?
-        }
-        // can extend right?
-        if (
-          next != null &&
-          next.gc &&
-          Y.utils.compareIds([n.id[0], n.id[1] + n.len], next.id)
-        ) {
-          n.len += next.len
-          yield* this.ds.delete(next.id)
-        }
+      var n = yield* this.markDeleted(id, len)
+      if (n.id[1] < id[1] && !n.gc) {
+        // un-extend left
+        var newlen = n.len - (id[1] - n.id[1])
+        n.len -= newlen
+        yield* this.ds.put(n)
+        n = {id: id, len: newlen, gc: false}
         yield* this.ds.put(n)
       }
+      // get prev&next before adding a new operation
+      var prev = yield* this.ds.findPrev(id)
+      var next = yield* this.ds.findNext(id)
+
+      if (id[1] < n.id[1] + n.len - len && !n.gc) {
+        // un-extend right
+        yield* this.ds.put({id: [id[0], id[1] + 1], len: n.len - 1, gc: false})
+        n.len = 1
+      }
+      // set gc'd
+      n.gc = true
+      // can extend left?
+      if (
+        prev != null &&
+        prev.gc &&
+        Y.utils.compareIds([prev.id[0], prev.id[1] + prev.len], n.id)
+      ) {
+        prev.len += n.len
+        yield* this.ds.delete(n.id)
+        n = prev
+        // ds.put n here?
+      }
+      // can extend right?
+      if (
+        next != null &&
+        next.gc &&
+        Y.utils.compareIds([n.id[0], n.id[1] + n.len], next.id)
+      ) {
+        n.len += next.len
+        yield* this.ds.delete(next.id)
+      }
+      yield* this.ds.put(n)
     }
     /*
       Mark an operation as deleted.
 
       returns the delete node
     */
-    * markDeleted (id) {
+    * markDeleted (id, length) {
+      if (length == null) {
+        length = 1
+      }
       // this.mem.push(["del", id]);
       var n = yield* this.ds.findWithUpperBound(id)
       if (n != null && n.id[0] === id[0]) {
-        if (n.id[1] <= id[1] && id[1] < n.id[1] + n.len) {
-          // already deleted
-          return n
-        } else if (n.id[1] + n.len === id[1] && !n.gc) {
-          // can extend existing deletion
-          n.len++
+        if (n.id[1] <= id[1] && id[1] <= n.id[1] + n.len) {
+          // id is in n's range
+          var diff = id[1] + length - (n.id[1] + n.len) // overlapping right
+          if (diff > 0) {
+            // id+length overlaps n
+            if (!n.gc) {
+              n.len += diff
+            } else {
+              diff = n.id[1] + n.len - id[1] // overlapping left (id till n.end)
+              if (diff < length) {
+                // a partial deletion
+                n = {id: [id[0], id[1] + diff], len: length - diff, gc: false}
+                yield* this.ds.put(n)
+              } else {
+                // already gc'd
+                throw new Error('Cannot happen! (it dit though.. :()')
+                // return n
+              }
+            }
+          } else {
+            // no overlapping, already deleted
+            return n
+          }
         } else {
-          // cannot extend left
-          n = {id: id, len: 1, gc: false}
-          yield* this.ds.put(n)
+          // cannot extend left (there is no left!)
+          n = {id: id, len: length, gc: false}
+          yield* this.ds.put(n) // TODO: you double-put !!
         }
       } else {
         // cannot extend left
-        n = {id: id, len: 1, gc: false}
+        n = {id: id, len: length, gc: false}
         yield* this.ds.put(n)
       }
       // can extend right?
       var next = yield* this.ds.findNext(n.id)
       if (
         next != null &&
-        Y.utils.compareIds([n.id[0], n.id[1] + n.len], next.id) &&
-        !next.gc
+        n.id[0] === next.id[0] &&
+        n.id[1] + n.len >= next.id[1]
       ) {
-        n.len = n.len + next.len
-        yield* this.ds.delete(next.id)
+        diff = n.id[1] + n.len - next.id[1] // from next.start to n.end
+        if (next.gc) {
+          if (diff >= 0) {
+            n.len -= diff
+            if (diff > next.len) {
+              // need to create another deletion after $next
+              // TODO: (may not be necessary, because this case shouldn't happen!)
+              //        also this is supposed to return a deletion range. which one to choose? n or the new created deletion?
+              throw new Error('This case is not handled (on purpose!)')
+            }
+          } // else: everything is fine :)
+        } else {
+          if (diff >= 0) {
+            if (diff > next.len) {
+              // may be neccessary to extend next.next!
+              // TODO: (may not be necessary, because this case shouldn't happen!)
+              throw new Error('This case is not handled (on purpose!)')
+            }
+            n.len += next.len - diff
+            yield* this.ds.delete(next.id)
+          }
+        }
       }
       yield* this.ds.put(n)
       return n
@@ -1616,19 +1711,9 @@ module.exports = function (Y/* :any */) {
     */
     * garbageCollectOperation (id) {
       this.store.addToDebug('yield* this.garbageCollectOperation(', id, ')')
-      // check to increase the state of the respective user
-      var state = yield* this.getState(id[0])
-      if (state.clock === id[1]) {
-        state.clock++
-        // also check if more expected operations were gc'd
-        yield* this.checkDeleteStoreForState(state)
-        // then set the state
-        yield* this.setState(state)
-      }
-      yield* this.markGarbageCollected(id)
-
-      // if op exists, then clean that mess up..
       var o = yield* this.getOperation(id)
+      yield* this.markGarbageCollected(id, 1) // always mark gc'd
+      // if op exists, then clean that mess up..
       if (o != null) {
         /*
         if (!o.deleted) {
@@ -1648,23 +1733,31 @@ module.exports = function (Y/* :any */) {
         if (o.right != null) {
           var right = yield* this.getOperation(o.right)
           right.left = o.left
-          if (Y.utils.compareIds(right.origin, o.id)) { // rights origin is o
+
+          if (o.originOf != null && o.originOf.length > 0) {
             // find new origin of right ops
             // origin is the first left deleted operation
             var neworigin = o.left
+            var neworigin_ = null
             while (neworigin != null) {
-              var neworigin_ = yield* this.getOperation(neworigin)
+              neworigin_ = yield* this.getOperation(neworigin)
               if (neworigin_.deleted) {
                 break
               }
               neworigin = neworigin_.left
             }
 
+            // reset origin of all right ops (except first right - duh!),
+
+            /* ** The following code does not rely on the the originOf property **
+                  I recently added originOf to all Insert Operations (see Struct.Insert.execute),
+                  which saves which operations originate in a Insert operation.
+                  Garbage collecting without originOf is more memory efficient, but is nearly impossible for large texts, or lists!
+                  But I keep this code for now
+            ```
             // reset origin of right
             right.origin = neworigin
-
-            // reset origin of all right ops (except first right - duh!),
-            // until you find origin pointer to the left of o
+            // search until you find origin pointer to the left of o
             if (right.right != null) {
               var i = yield* this.getOperation(right.right)
               var ids = [o.id, o.right]
@@ -1685,9 +1778,41 @@ module.exports = function (Y/* :any */) {
                 }
               }
             }
-          } /* otherwise, rights origin is to the left of o,
-               then there is no right op (from o), that origins in o */
-          yield* this.setOperation(right)
+            ```
+            */
+            // ** Now the new implementation starts **
+            // reset neworigin of all originOf[*]
+            for (var _i in o.originOf) {
+              var originsIn = yield* this.getOperation(o.originOf[_i])
+              if (originsIn != null) {
+                originsIn.origin = neworigin
+                yield* this.setOperation(originsIn)
+              }
+            }
+            if (neworigin != null) {
+              if (neworigin_.originOf == null) {
+                neworigin_.originOf = o.originOf
+              } else {
+                neworigin_.originOf = o.originOf.concat(neworigin_.originOf)
+              }
+              yield* this.setOperation(neworigin_)
+            }
+            // we don't need to set right here, because
+            // right should be in o.originOf => it is set it the previous for loop
+          } else {
+            // we didn't need to reset the origin of right
+            // so we have to set right here
+            yield* this.setOperation(right)
+          }
+          // o may originate in another operation.
+          // Since o is deleted, we have to reset o.origin's `originOf` property
+          if (o.origin != null) {
+            var origin = yield* this.getOperation(o.origin)
+            origin.originOf = origin.originOf.filter(function (_id) {
+              return !Y.utils.compareIds(id, _id)
+            })
+            yield* this.setOperation(origin)
+          }
         }
 
         if (o.parent != null) {
@@ -1732,9 +1857,7 @@ module.exports = function (Y/* :any */) {
     * applyDeleteSet (ds) {
       var deletions = []
       function createDeletions (user, start, len, gc) {
-        for (var c = start; c < start + len; c++) {
-          deletions.push([user, c, gc])
-        }
+        deletions.push([user, start, len, gc])
       }
 
       for (var user in ds) {
@@ -1789,26 +1912,46 @@ module.exports = function (Y/* :any */) {
       }
       for (var i = 0; i < deletions.length; i++) {
         var del = deletions[i]
-        var id = [del[0], del[1]]
         // always try to delete..
-        var addOperation = yield* this.deleteOperation(id)
-        if (addOperation) {
-          // TODO:.. really .. here? You could prevent calling all these functions in operationAdded
-          yield* this.store.operationAdded(this, {struct: 'Delete', target: id})
+        var state = yield* this.getState(del[0])
+        if (del[1] < state.clock) {
+          for (let c = del[1]; c < del[1] + del[2]; c++) {
+            var id = [del[0], c]
+            var addOperation = yield* this.deleteOperation(id)
+            if (addOperation) {
+              // TODO:.. really .. here? You could prevent calling all these functions in operationAdded
+              yield* this.store.operationAdded(this, {struct: 'Delete', target: id})
+            }
+            if (del[3]) {
+              // gc
+              yield* this.garbageCollectOperation(id)
+            }
+          }
+        } else {
+          if (del[3]) {
+            yield* this.markGarbageCollected([del[0], del[1]], del[2])
+          } else {
+            yield* this.markDeleted([del[0], del[1]], del[2])
+          }
         }
-        if (del[2]) {
-          // gc
-          yield* this.garbageCollectOperation(id)
+        if (del[3]) {
+          // check to increase the state of the respective user
+          if (state.clock >= del[1] && state.clock < del[1] + del[2]) {
+            state.clock = del[1] + del[2]
+            // also check if more expected operations were gc'd
+            yield* this.checkDeleteStoreForState(state) // TODO: unneccessary?
+            // then set the state
+            yield* this.setState(state)
+          }
         }
       }
       if (this.store.forwardAppliedOperations) {
-        var ops = deletions.map(function (d) {
-          return {struct: 'Delete', target: [d[0], d[1]]}
-        })
-        this.store.y.connector.broadcast({
-          type: 'update',
-          ops: ops
-        })
+        for (let c = del[1]; c < del[1] + del[2]; c++) {
+          var ops = deletions.map(function (d) {
+            return {struct: 'Delete', target: [d[0], c]} // TODO: implement Delete with deletion length!
+          })
+          this.store.y.connector.broadcastOps(ops)
+        }
       }
     }
     * isGarbageCollected (id) {
@@ -1846,10 +1989,7 @@ module.exports = function (Y/* :any */) {
       yield* this.os.put(op)
       if (!this.store.y.connector.isDisconnected() && this.store.forwardAppliedOperations && op.id[0] !== '_') {
         // is connected, and this is not going to be send in addOperation
-        this.store.y.connector.broadcast({
-          type: 'update',
-          ops: [op]
-        })
+        this.store.y.connector.broadcastOps([op])
       }
     }
     * getOperation (id/* :any */)/* :Transaction<any> */ {
@@ -1909,34 +2049,8 @@ module.exports = function (Y/* :any */) {
       })
       return ss
     }
-    * getOperations (startSS) {
-      // TODO: use bounds here!
-      if (startSS == null) {
-        startSS = {}
-      }
-      var ops = []
-
-      var endSV = yield* this.getStateVector()
-      for (var endState of endSV) {
-        var user = endState.user
-        if (user === '_') {
-          continue
-        }
-        var startPos = startSS[user] || 0
-
-        yield* this.os.iterate(this, [user, startPos], [user, Number.MAX_VALUE], function * (op) {
-          ops.push(op)
-        })
-      }
-      var res = []
-      for (var op of ops) {
-        var o = yield* this.makeOperationReady(startSS, op)
-        res.push(o)
-      }
-      return res
-    }
     /*
-      Here, we make op executable for the receiving user.
+      Here, we make all missing operations executable for the receiving user.
 
       Notes:
         startSS: denotes to the SV that the remote user sent
@@ -1971,7 +2085,92 @@ module.exports = function (Y/* :any */) {
             (startSS or currSS.. ?)
             -> Could be necessary when I turn GC again.
             -> Is a bad(ish) idea because it requires more computation
+
+      What we do:
+      * Iterate over all missing operations.
+      * When there is an operation, where the right op is known, send this op all missing ops to the left to the user
+      * I explained above what we have to do with each operation. Here is how we do it efficiently:
+        1. Go to the left until you find either op.origin, or a known operation (let o denote current operation in the iteration)
+        2. Found a known operation -> set op.left = o, and send it to the user. stop
+        3. Found o = op.origin -> set op.left = op.origin, and send it to the user. start again from 1. (set op = o)
+        4. Found some o -> set o.right = op, o.left = o.origin, send it to the user, continue
     */
+    * getOperations (startSS) {
+      // TODO: use bounds here!
+      if (startSS == null) {
+        startSS = {}
+      }
+      var send = []
+
+      var endSV = yield* this.getStateVector()
+      for (var endState of endSV) {
+        var user = endState.user
+        if (user === '_') {
+          continue
+        }
+        var startPos = startSS[user] || 0
+
+        yield* this.os.iterate(this, [user, startPos], [user, Number.MAX_VALUE], function * (op) {
+          op = Y.Struct[op.struct].encode(op)
+          if (op.struct !== 'Insert') {
+            send.push(op)
+          } else if (op.right == null || op.right[1] < (startSS[op.right[0]] || 0)) {
+            // case 1. op.right is known
+            var o = op
+            // Remember: ?
+            // -> set op.right
+            //    1. to the first operation that is known (according to startSS)
+            //    2. or to the first operation that has an origin that is not to the
+            //      right of op.
+            // For this we maintain a list of ops which origins are not found yet.
+            var missing_origins = [op]
+            var newright = op.right
+            while (true) {
+              if (o.left == null) {
+                op.left = null
+                send.push(op)
+                if (!Y.utils.compareIds(o.id, op.id)) {
+                  o = Y.Struct[op.struct].encode(o)
+                  o.right = missing_origins[missing_origins.length - 1].id
+                  send.push(o)
+                }
+                break
+              }
+              o = yield* this.getOperation(o.left)
+              // we set another o, check if we can reduce $missing_origins
+              while (missing_origins.length > 0 && Y.utils.compareIds(missing_origins[missing_origins.length - 1].origin, o.id)) {
+                missing_origins.pop()
+              }
+              if (o.id[1] < (startSS[o.id[0]] || 0)) {
+                // case 2. o is known
+                op.left = o.id
+                send.push(op)
+                break
+              } else if (Y.utils.compareIds(o.id, op.origin)) {
+                // case 3. o is op.origin
+                op.left = op.origin
+                send.push(op)
+                op = Y.Struct[op.struct].encode(o)
+                op.right = newright
+                if (missing_origins.length > 0) {
+                  console.log('This should not happen .. :( please report this')
+                }
+                missing_origins = [op]
+              } else {
+                // case 4. send o, continue to find op.origin
+                var s = Y.Struct[op.struct].encode(o)
+                s.right = missing_origins[missing_origins.length - 1].id
+                s.left = s.origin
+                send.push(s)
+                missing_origins.push(o)
+              }
+            }
+          }
+        })
+      }
+      return send.reverse()
+    }
+    /* this is what we used before.. use this as a reference..
     * makeOperationReady (startSS, op) {
       op = Y.Struct[op.struct].encode(op)
       op = Y.utils.copyObject(op)
@@ -1994,6 +2193,12 @@ module.exports = function (Y/* :any */) {
       op.right = o.right
       op.left = op.origin
       return op
+    }
+    */
+    * flush () {
+      yield* this.os.flush()
+      yield* this.ss.flush()
+      yield* this.ds.flush()
     }
   }
   Y.Transaction = TransactionInterface
@@ -2022,7 +2227,7 @@ module.exports = function (Y/* :any */) {
   ```
 
   The structures usually work asynchronously (you have to wait for the
-  database request to finish). EventHandler will help you to make your type
+  database request to finish). EventHandler helps you to make your type
   synchronous.
 */
 module.exports = function (Y /* : any*/) {
@@ -2209,7 +2414,7 @@ module.exports = function (Y /* : any*/) {
     Defines a smaller relation on Id's
   */
   function smaller (a, b) {
-    return a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])
+    return a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || typeof a[1] < typeof b[1]))
   }
   Y.utils.smaller = smaller
 
@@ -2227,6 +2432,159 @@ module.exports = function (Y /* : any*/) {
     }
   }
   Y.utils.compareIds = compareIds
+
+  function createEmptyOpsArray (n) {
+    var a = new Array(n)
+    for (var i = 0; i < a.length; i++) {
+      a[i] = {
+        id: [null, null]
+      }
+    }
+    return a
+  }
+
+  function createSmallLookupBuffer (Store) {
+    /*
+      This buffer implements a very small buffer that temporarily stores operations
+      after they are read / before they are written.
+      The buffer basically implements FIFO. Often requested lookups will be re-queued every time they are looked up / written.
+
+      It can speed up lookups on Operation Stores and State Stores. But it does not require notable use of memory or processing power.
+
+      Good for os and ss, bot not for ds (because it often uses methods that require a flush)
+
+      I tried to optimize this for performance, therefore no highlevel operations.
+    */
+    class SmallLookupBuffer extends Store {
+      constructor () {
+        super(...arguments)
+        this.writeBuffer = createEmptyOpsArray(5)
+        this.readBuffer = createEmptyOpsArray(10)
+      }
+      * find (id) {
+        var i, r
+        for (i = this.readBuffer.length - 1; i >= 0; i--) {
+          r = this.readBuffer[i]
+          // we don't have to use compareids, because id is always defined!
+          if (r.id[1] === id[1] && r.id[0] === id[0]) {
+            // found r
+            // move r to the end of readBuffer
+            for (; i < this.readBuffer.length - 1; i++) {
+              this.readBuffer[i] = this.readBuffer[i + 1]
+            }
+            this.readBuffer[this.readBuffer.length - 1] = r
+            return r
+          }
+        }
+        var o
+        for (i = this.writeBuffer.length - 1; i >= 0; i--) {
+          r = this.writeBuffer[i]
+          if (r.id[1] === id[1] && r.id[0] === id[0]) {
+            o = r
+            break
+          }
+        }
+        if (i < 0) {
+          // did not reach break in last loop
+          // read id and put it to the end of readBuffer
+          o = yield* super.find(id)
+        }
+        if (o != null) {
+          for (i = 0; i < this.readBuffer.length - 1; i++) {
+            this.readBuffer[i] = this.readBuffer[i + 1]
+          }
+          this.readBuffer[this.readBuffer.length - 1] = o
+        }
+        return o
+      }
+      * put (o) {
+        var id = o.id
+        var i, r // helper variables
+        for (i = this.writeBuffer.length - 1; i >= 0; i--) {
+          r = this.writeBuffer[i]
+          if (r.id[1] === id[1] && r.id[0] === id[0]) {
+            // is already in buffer
+            // forget r, and move o to the end of writeBuffer
+            for (; i < this.writeBuffer.length - 1; i++) {
+              this.writeBuffer[i] = this.writeBuffer[i + 1]
+            }
+            this.writeBuffer[this.writeBuffer.length - 1] = o
+            break
+          }
+        }
+        if (i < 0) {
+          // did not reach break in last loop
+          // write writeBuffer[0]
+          var write = this.writeBuffer[0]
+          if (write.id[0] !== null) {
+            yield* super.put(write)
+          }
+          // put o to the end of writeBuffer
+          for (i = 0; i < this.writeBuffer.length - 1; i++) {
+            this.writeBuffer[i] = this.writeBuffer[i + 1]
+          }
+          this.writeBuffer[this.writeBuffer.length - 1] = o
+        }
+        // check readBuffer for every occurence of o.id, overwrite if found
+        // whether found or not, we'll append o to the readbuffer
+        for (i = 0; i < this.readBuffer.length - 1; i++) {
+          r = this.readBuffer[i + 1]
+          if (r.id[1] === id[1] && r.id[0] === id[0]) {
+            this.readBuffer[i] = o
+          } else {
+            this.readBuffer[i] = r
+          }
+        }
+        this.readBuffer[this.readBuffer.length - 1] = o
+      }
+      * delete (id) {
+        var i, r
+        for (i = 0; i < this.readBuffer.length; i++) {
+          r = this.readBuffer[i]
+          if (r.id[1] === id[1] && r.id[0] === id[0]) {
+            this.readBuffer[i] = {
+              id: [null, null]
+            }
+          }
+        }
+        yield* this.flush()
+        yield* super.delete(id)
+      }
+      * findWithLowerBound () {
+        yield* this.flush()
+        return yield* super.findWithLowerBound.apply(this, arguments)
+      }
+      * findWithUpperBound () {
+        yield* this.flush()
+        return yield* super.findWithUpperBound.apply(this, arguments)
+      }
+      * findNext () {
+        yield* this.flush()
+        return yield* super.findNext.apply(this, arguments)
+      }
+      * findPrev () {
+        yield* this.flush()
+        return yield* super.findPrev.apply(this, arguments)
+      }
+      * iterate () {
+        yield* this.flush()
+        yield* super.iterate.apply(this, arguments)
+      }
+      * flush () {
+        for (var i = 0; i < this.writeBuffer.length; i++) {
+          var write = this.writeBuffer[i]
+          if (write.id[0] !== null) {
+            yield* super.put(write)
+            this.writeBuffer[i] = {
+              id: [null, null]
+            }
+          }
+        }
+      }
+    }
+    return SmallLookupBuffer
+  }
+  Y.utils.createSmallLookupBuffer = createSmallLookupBuffer
 }
 
 },{}],7:[function(require,module,exports){
@@ -2325,8 +2683,9 @@ function Y (opts/* :YOptions */) /* :Promise<YConfig> */ {
   Y.sourceDir = opts.sourceDir
   return Y.requestModules(modules).then(function () {
     return new Promise(function (resolve) {
-      var yconfig = new YConfig(opts, function () {
-        yconfig.db.whenUserIdSet(function () {
+      var yconfig = new YConfig(opts)
+      yconfig.db.whenUserIdSet(function () {
+        yconfig.init(function () {
           resolve(yconfig)
         })
       })
@@ -2341,8 +2700,12 @@ class YConfig {
   share: {[key: string]: any};
   */
   constructor (opts, callback) {
+    this.options = opts
     this.db = new Y[opts.db.name](this, opts.db)
     this.connector = new Y[opts.connector.name](this, opts.connector)
+  }
+  init (callback) {
+    var opts = this.options
     var share = {}
     this.share = share
     this.db.requestTransaction(function * requestTransaction () {
@@ -2358,7 +2721,8 @@ class YConfig {
         }
         share[propertyname] = yield* this.getType(id)
       }
-      setTimeout(callback, 0)
+      this.store.whenTransactionsFinished()
+        .then(callback)
     })
   }
   isConnected () {

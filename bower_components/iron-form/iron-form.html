@@ -13,9 +13,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 /*
-``<iron-form>` is an HTML `<form>` element that can validate and submit any custom
+`<iron-form>` is an HTML `<form>` element that can validate and submit any custom
 elements that implement `Polymer.IronFormElementBehavior`, as well as any
-native HTML elements.
+native HTML elements. For more information on which attributes are
+available on the native form element, see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form
 
 It supports both `get` and `post` methods, and uses an `iron-ajax` element to
 submit the form data to the action URL.
@@ -46,12 +47,14 @@ object. However, If you want to not use `iron-ajax` at all, you can cancel the
 event and do your own custom submission:
 
   Example of modifying the request, but still using the build-in form submission:
+
     form.addEventListener('iron-form-presubmit', function() {
       this.request.method = 'put';
       this.request.params = someCustomParams;
     });
 
   Example of bypassing the build-in form submission:
+
     form.addEventListener('iron-form-presubmit', function(event) {
       event.preventDefault();
       var firebase = new Firebase(form.getAttribute('action'));
@@ -68,14 +71,6 @@ event and do your own custom submission:
     extends: 'form',
 
     properties: {
-      /**
-       * Content type to use when sending data.
-       */
-      contentType: {
-        type: String,
-        value: "application/x-www-form-urlencoded"
-      },
-
       /**
        * By default, the form will display the browser's native validation
        * UI (i.e. popup bubbles and invalid styles on invalid fields). You can
@@ -97,7 +92,24 @@ event and do your own custom submission:
       },
 
       /**
-      * HTTP request headers to send
+       * Content type to use when sending data. If the `contentType` property
+       * is set and a `Content-Type` header is specified in the `headers`
+       * property, the `headers` property value will take precedence.
+       * If Content-Type is set to a value listed below, then
+       * the `body` (typically used with POST requests) will be encoded accordingly.
+       *
+       *    * `content-type="application/json"`
+       *      * body is encoded like `{"foo":"bar baz","x":1}`
+       *    * `content-type="application/x-www-form-urlencoded"`
+       *      * body is encoded like `foo=bar+baz&x=1`
+       */
+      contentType: {
+        type: String,
+        value: "application/x-www-form-urlencoded"
+      },
+
+      /**
+      * HTTP request headers to send.
       *
       * Note: setting a `Content-Type` header here will override the value
       * specified by the `contentType` property of this element.
@@ -142,13 +154,15 @@ event and do your own custom submission:
       */
 
     /**
-    * Fired after the form is submitted and a response is received.
+    * Fired after the form is submitted and a response is received. An
+    * IronRequestElement is included as the event.detail object.
     *
     * @event iron-form-response
     */
 
     /**
-     * Fired after the form is submitted and an error is received.
+     * Fired after the form is submitted and an error is received. An
+     * IronRequestElement is included as the event.detail object.
      *
      * @event iron-form-error
      */
@@ -246,23 +260,23 @@ event and do your own custom submission:
     serialize: function() {
       var json = {};
 
-      function addSerializedElement(el) {
+      function addSerializedElement(name, value) {
         // If the name doesn't exist, add it. Otherwise, serialize it to
         // an array,
-        if (!json[el.name]) {
-          json[el.name] = el.value;
+        if (!json[name]) {
+          json[name] = value;
         } else {
-          if (!Array.isArray(json[el.name])) {
-            json[el.name] = [json[el.name]];
+          if (!Array.isArray(json[name])) {
+            json[name] = [json[name]];
           }
-          json[el.name].push(el.value);
+          json[name].push(value);
         }
       }
 
       // Go through all of the registered custom components.
       for (var el, i = 0; el = this._customElements[i], i < this._customElements.length; i++) {
         if (this._useValue(el)) {
-          addSerializedElement(el);
+          addSerializedElement(el.name, el.value);
         }
       }
 
@@ -276,8 +290,16 @@ event and do your own custom submission:
         if (!this._useValue(el) ||
             (el.hasAttribute('is') && json[el.name])) {
           continue;
+        } else if (el.tagName.toLowerCase() === 'select' && el.multiple) {
+          // A <select multiple> has an array of values.
+          for (var o = 0; o < el.options.length; o++) {
+            if (el.options[o].selected) {
+              addSerializedElement(el.name, el.options[o].value);
+            }
+          }
+        } else {
+          addSerializedElement(el.name, el.value);
         }
-        addSerializedElement(el);
       }
 
       return json;
@@ -334,7 +356,7 @@ event and do your own custom submission:
       for (var el, i = 0; el = this.elements[i], i < this.elements.length; i++) {
         // Custom elements that extend a native element will also appear in
         // this list, but they've already been validated.
-        if (!el.hasAttribute('is') && el.willValidate && el.checkValidity && el.name) {
+        if (!el.hasAttribute('is') && el.willValidate && el.checkValidity) {
           valid = el.checkValidity() && valid;
         }
       }
@@ -350,7 +372,8 @@ event and do your own custom submission:
       if (el.type == 'checkbox' ||
           el.type == 'radio' ||
           el.getAttribute('role') == 'checkbox' ||
-          el.getAttribute('role') == 'radio') {
+          el.getAttribute('role') == 'radio' ||
+          el['_hasIronCheckedElementBehavior']) {
         return true;
       }
       return false;
@@ -399,6 +422,7 @@ event and do your own custom submission:
           } else {
             el.value = this._customElementsInitialValues[i];
           }
+          el.invalid = false;
         }
 
         this.fire('iron-form-reset');
