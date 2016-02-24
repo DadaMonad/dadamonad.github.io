@@ -20,7 +20,7 @@ function extend (Y /* :any */) {
       this.opContents = opContents
       this.eventHandler = new Y.utils.EventHandler(ops => {
         var userEvents = []
-        for (var i in ops) {
+        for (var i = 0; i < ops.length; i++) {
           var op = ops[i]
           var oldValue
           // key is the name to use to access (op)content
@@ -96,6 +96,15 @@ function extend (Y /* :any */) {
           this.eventHandler.callEventListeners(userEvents)
         }
       })
+    }
+    _destroy () {
+      this.eventHandler.destroy()
+      this.eventHandler = null
+      this.contents = null
+      this.opContents = null
+      this._model = null
+      this.os = null
+      this.map = null
     }
     get (key) {
       // return property.
@@ -251,7 +260,7 @@ function extend (Y /* :any */) {
           })
         }
         var observer = function (events) {
-          for (var e in events) {
+          for (var e = 0; e < events.length; e++) {
             var event = events[e]
             if (event.name === path[0]) {
               if (deleteChildObservers != null) {

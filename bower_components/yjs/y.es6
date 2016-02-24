@@ -52,6 +52,7 @@ module.exports = function (Y/* :any */) {
       this.broadcastedHB = false
       this.syncStep2 = Promise.resolve()
       this.broadcastOpBuffer = []
+      this.protocolVersion = 8
     }
     reconnect () {
     }
@@ -207,6 +208,18 @@ module.exports = function (Y/* :any */) {
       }
       if (this.debug) {
         console.log(`receive ${sender} -> ${this.userId}: ${message.type}`, JSON.parse(JSON.stringify(message))) // eslint-disable-line
+      }
+      if (message.protocolVersion != null && message.protocolVersion !== this.protocolVersion) {
+        console.error(
+          `You tried to sync with a yjs instance that has a different protocol version
+          (You: ${this.protocolVersion}, Client: ${message.protocolVersion}).
+          The sync was stopped. You need to upgrade your dependencies (especially Yjs & the Connector)!
+          `)
+        this.send(sender, {
+          type: 'sync stop',
+          protocolVersion: this.protocolVersion
+        })
+        return
       }
       if (message.type === 'sync step 1') {
         // TODO: make transaction, stream the ops
@@ -718,9 +731,17 @@ module.exports = function (Y /* :any */) {
       this.gc2 = this.gc2.filter(filter)
       delete op.gc
     }
-    destroy () {
+    * destroy () {
       clearInterval(this.gcInterval)
       this.gcInterval = null
+      for (var key in this.initializedTypes) {
+        var type = this.initializedTypes[key]
+        if (type._destroy != null) {
+          type._destroy()
+        } else {
+          console.error('The type you included does not provide destroy functionality, it will remain in memory (updating your packages will help).')
+        }
+      }
     }
     setUserId (userId) {
       if (!this.userIdPromise.inProgress) {
@@ -756,8 +777,8 @@ module.exports = function (Y /* :any */) {
       * check if was deleted, apply a delete operation after op was applied
     */
     apply (ops) {
-      for (var key in ops) {
-        var o = ops[key]
+      for (var i = 0; i < ops.length; i++) {
+        var o = ops[i]
         if (o.id == null || o.id[0] !== this.y.connector.userId) {
           var required = Y.Struct[o.struct].requiredOps(o)
           this.whenOperationsExist(required, o)
@@ -775,8 +796,8 @@ module.exports = function (Y /* :any */) {
           missing: ids.length
         }
 
-        for (let key in ids) {
-          let id = ids[key]
+        for (let i = 0; i < ids.length; i++) {
+          let id = ids[i]
           let sid = JSON.stringify(id)
           let l = this.listenersById[sid]
           if (l == null) {
@@ -819,8 +840,8 @@ module.exports = function (Y /* :any */) {
           if (op == null) {
             store.listenersById[sid] = l
           } else {
-            for (let key in l) {
-              let listener = l[key]
+            for (let i = 0; i < l.length; i++) {
+              let listener = l[i]
               let o = listener.op
               if (--listener.missing === 0) {
                 yield* store.tryExecute.call(this, o)
@@ -1944,12 +1965,11 @@ module.exports = function (Y/* :any */) {
             yield* this.setState(state)
           }
         }
-      }
-      if (this.store.forwardAppliedOperations) {
-        for (let c = del[1]; c < del[1] + del[2]; c++) {
-          var ops = deletions.map(function (d) {
-            return {struct: 'Delete', target: [d[0], c]} // TODO: implement Delete with deletion length!
-          })
+        if (this.store.forwardAppliedOperations) {
+          var ops = []
+          for (let c = del[1]; c < del[1] + del[2]; c++) {
+            ops.push({struct: 'Delete', target: [d[0], c]}) // TODO: implement Delete with deletion length!
+          }
           this.store.y.connector.broadcastOps(ops)
         }
       }
@@ -2252,6 +2272,12 @@ module.exports = function (Y /* : any*/) {
       this.awaiting = 0
       this.onevent = onevent
       this.eventListeners = []
+    }
+    destroy () {
+      this.waiting = null
+      this.awaiting = null
+      this.onevent = null
+      this.eventListeners = null
     }
     /*
       Call this when a new operation arrives. It will be executed right away if
@@ -2682,13 +2708,21 @@ function Y (opts/* :YOptions */) /* :Promise<YConfig> */ {
   }
   Y.sourceDir = opts.sourceDir
   return Y.requestModules(modules).then(function () {
-    return new Promise(function (resolve) {
-      var yconfig = new YConfig(opts)
-      yconfig.db.whenUserIdSet(function () {
-        yconfig.init(function () {
-          resolve(yconfig)
+    return new Promise(function (resolve, reject) {
+      if (opts == null) reject('An options object is expected! ')
+      else if (opts.connector == null) reject('You must specify a connector! (missing connector property)')
+      else if (opts.connector.name == null) reject('You must specify connector name! (missing connector.name property)')
+      else if (opts.db == null) reject('You must specify a database! (missing db property)')
+      else if (opts.connector.name == null) reject('You must specify db name! (missing db.name property)')
+      else if (opts.share == null) reject('You must specify a set of shared types!')
+      else {
+        var yconfig = new YConfig(opts)
+        yconfig.db.whenUserIdSet(function () {
+          yconfig.init(function () {
+            resolve(yconfig)
+          })
         })
-      })
+      }
     })
   })
 }
@@ -2698,6 +2732,7 @@ class YConfig {
   db: Y.AbstractDatabase;
   connector: Y.AbstractConnector;
   share: {[key: string]: any};
+  options: Object;
   */
   constructor (opts, callback) {
     this.options = opts
@@ -2735,10 +2770,17 @@ class YConfig {
     return this.connector.reconnect()
   }
   destroy () {
-    this.disconnect()
-    this.db.destroy()
-    this.connector = null
-    this.db = null
+    if (this.connector.destroy != null) {
+      this.connector.destroy()
+    } else {
+      this.connector.disconnect()
+    }
+    var self = this
+    this.db.requestTransaction(function * () {
+      yield* self.db.destroy()
+      self.connector = null
+      self.db = null
+    })
   }
 }
 

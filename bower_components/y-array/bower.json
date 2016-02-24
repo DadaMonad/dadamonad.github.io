@@ -1,32 +1,24 @@
 {
-  "name": "y-list",
-  "version": "0.7.10",
+  "name": "y-array",
+  "version": "8.0.2",
   "homepage": "http://y-js.org",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
   ],
-  "description": "List type for Yjs",
-  "main": [
-    "./y-list.js",
-    "./build/node/y-list.js"
-  ],
+  "description": "Array type for Yjs",
+  "main": "./y-array.js",
   "keywords": [
+    "Yjs",
     "OT",
-    "collaboration",
-    "synchronization",
+    "Collaboration",
+    "Synchronization",
     "ShareJS",
     "Coweb",
-    "concurrency"
+    "Concurrency"
   ],
   "license": "MIT",
-  "ignore": [
-    "node_modules",
-    "bower_components",
-    "test",
-    "extras",
-    "test"
-  ],
-  "devDependencies": {
-    "y-test": "y-test#~0.4.0"
+  "ignore": [],
+  "dependencies": {
+    "yjs": "~9.0"
   }
 }

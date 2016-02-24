@@ -1,19 +1,21 @@
 {
   "name": "yjs",
-  "version": "0.8.14",
+  "version": "9.0.4",
   "homepage": "y-js.org",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
   ],
-  "description": "A Framework that enables Real-Time collaboration on arbitrary data structures.",
-  "main": "y.js",
+  "description": "A Framework for shared editing on any data",
+  "main": "./y.js",
   "keywords": [
+    "Yjs",
     "OT",
-    "collaboration",
-    "synchronization",
-    "sharejs",
-    "coweb",
-    "concurrency"
+    "Collaboration",
+    "Synchronization",
+    "ShareJS",
+    "Coweb",
+    "Concurrency"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "ignore": []
 }
