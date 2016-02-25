@@ -1,24 +1,29 @@
 {
   "name": "y-map",
-  "version": "8.0.1",
+  "version": "0.7.6",
   "homepage": "http://y-js.org",
   "authors": [
     "Kevin Jahns <kevin.jahns@rwth-aachen.de>"
   ],
   "description": "Map type for Yjs",
-  "main": "./y-map.js",
+  "main": [
+    "./y-list.js",
+    "./build/node/y-list.js"
+  ],
   "keywords": [
-    "Yjs",
     "OT",
-    "Collaboration",
-    "Synchronization",
+    "collaboration",
+    "synchronization",
     "ShareJS",
     "Coweb",
-    "Concurrency"
+    "concurrency"
   ],
   "license": "MIT",
-  "ignore": [],
-  "dependencies": {
-    "yjs": "~9.0"
-  }
+  "ignore": [
+    "node_modules",
+    "bower_components",
+    "test",
+    "extras",
+    "test"
+  ]
 }
