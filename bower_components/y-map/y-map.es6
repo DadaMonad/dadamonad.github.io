@@ -43,7 +43,17 @@ function extend (Y /* :any */) {
           // compute op event
           if (op.struct === 'Insert') {
             if (op.left === null) {
+              var value
+              // TODO: what if op.deleted??? I partially handles this case here.. (maybe from the previous version)
               if (op.opContent != null) {
+                value = () => {// eslint-disable-line
+                  return new Promise((resolve) => {
+                    this.os.requestTransaction(function *() {// eslint-disable-line
+                      var type = yield* this.getType(op.opContent)
+                      resolve(type)
+                    })
+                  })
+                }
                 delete this.contents[key]
                 if (op.deleted) {
                   delete this.opContents[key]
@@ -51,6 +61,7 @@ function extend (Y /* :any */) {
                   this.opContents[key] = op.opContent
                 }
               } else {
+                value = op.content
                 delete this.opContents[key]
                 if (op.deleted) {
                   delete this.contents[key]
@@ -64,14 +75,16 @@ function extend (Y /* :any */) {
                 insertEvent = {
                   name: key,
                   object: this,
-                  type: 'add'
+                  type: 'add',
+                  value: value
                 }
               } else {
                 insertEvent = {
                   name: key,
                   object: this,
                   oldValue: oldValue,
-                  type: 'update'
+                  type: 'update',
+                  value: value
                 }
               }
               userEvents.push(insertEvent)
@@ -110,8 +123,8 @@ function extend (Y /* :any */) {
       // return property.
       // if property does not exist, return null
       // if property is a type, return a promise
-      if (key == null) {
-        throw new Error('You must specify key!')
+      if (key == null || typeof key !== 'string') {
+        throw new Error('You must specify a key (as string)!')
       }
       if (this.opContents[key] == null) {
         return this.contents[key]
@@ -125,6 +138,15 @@ function extend (Y /* :any */) {
         })
       }
     }
+    keys () {
+      return Object.keys(this.contents).concat(Object.keys(this.opContents))
+    }
+    keysPrimitives () {
+      return Object.keys(this.contents)
+    }
+    keysTypes () {
+      return Object.keys(this.opContents)
+    }
     /*
       If there is a primitive (not a custom type), then return it.
       Returns all primitive values, if propertyName is specified!
@@ -134,8 +156,25 @@ function extend (Y /* :any */) {
     getPrimitive (key) {
       if (key == null) {
         return Y.utils.copyObject(this.contents)
+      } else if (typeof key !== 'string') {
+        throw new Error('Key is expected to be a string!')
       } else {
         return this.contents[key]
+      }
+    }
+    getType (key) {
+      if (key == null || typeof key !== 'string') {
+        throw new Error('You must specify a key (as string)!')
+      } else if (this.opContents[key] != null) {
+        return new Promise((resolve) => {
+          var oid = this.opContents[key]
+          this.os.requestTransaction(function *() {
+            var type = yield* this.getType(oid)
+            resolve(type)
+          })
+        })
+      } else {
+        return Promise.reject('No property specified for this key!')
       }
     }
     delete (key) {
@@ -170,10 +209,11 @@ function extend (Y /* :any */) {
         struct: 'Insert'
       }
       return new Promise((resolve) => {
-        if (value instanceof Y.utils.CustomType) {
+        var typeDefinition = Y.utils.isTypeDefinition(value)
+        if (typeDefinition !== false) {
           // construct a new type
           this.os.requestTransaction(function *() {
-            var type = yield* this.createType(value)
+            var type = yield* this.createType(typeDefinition)
             insert.opContent = type._model
             insert.id = this.store.getNextOpId()
             yield* this.applyCreatedOperations([insert])
