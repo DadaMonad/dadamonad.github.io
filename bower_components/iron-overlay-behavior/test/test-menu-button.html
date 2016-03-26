@@ -1,4 +1,3 @@
-<!doctype html>
 <!--
 @license
 Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
@@ -9,24 +8,29 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<html>
-<head>
+<link rel="import" href="../../polymer/polymer.html">
+<link rel="import" href="test-overlay.html">
 
-  <meta charset="utf-8">
-  <title>Tests</title>
-  <script src="../../web-component-tester/browser.js"></script>
+<dom-module id="test-menu-button">
 
-</head>
-<body>
+  <template>
+    <button id="trigger" on-click="toggle">Open</button>
+    <test-overlay id="dropdown">
+      <content></content>
+    </test-overlay>
+  </template>
 
-  <script>
+</dom-module>
 
-    WCT.loadSuites([
-      'basic.html',
-      'basic.html?dom=shadow'
-    ]);
+<script>
 
-  </script>
+(function() {
+  Polymer({
+    is: 'test-menu-button',
+    toggle: function() {
+      this.$.dropdown.toggle();
+    }
+  });
+})();
 
-</body>
-</html>
+</script>

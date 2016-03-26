@@ -45071,15 +45071,29 @@ CSS properties               | Action
     },
 
     /**
+     * Returns the deepest overlay in the path.
+     * @param {?Array<Element>} path
+     * @return {Element|undefined}
+     * @private
+     */
+    _overlayInPath: function(path) {
+      path = path || [];
+      for (var i = 0; i < path.length; i++) {
+        if (path[i]._manager === this) {
+          return path[i];
+        }
+      }
+    },
+
+    /**
      * Ensures the click event is delegated to the right overlay.
      * @param {!Event} event
      * @private
      */
     _onCaptureClick: function(event) {
       var overlay = /** @type {?} */ (this.currentOverlay());
-      // Check if clicked outside of any overlay.
-      var target = /** @type {Element} */ (Polymer.dom(event).rootTarget);
-      if (overlay && this._overlayParent(target) !== overlay) {
+      // Check if clicked outside of top overlay.
+      if (overlay && this._overlayInPath(Polymer.dom(event).path) !== overlay) {
         overlay._onCaptureClick(event);
       }
     },
@@ -45432,7 +45446,7 @@ context. You should place this element as a child of `<body>` whenever possible.
           this._renderClosed();
         }
         this._openChangedAsync = null;
-      }, 1);
+      });
     },
 
     _canceledChanged: function() {
@@ -45898,6 +45912,8 @@ It will also ensure that focus remains in the dialog.
      * @param {string|number} value the value to select.
      */
     select: function(value) {
+      // Cancel automatically focusing a default item if the menu received focus
+      // through a user action selecting a particular item.
       if (this._defaultFocusAsync) {
         this.cancelAsync(this._defaultFocusAsync);
         this._defaultFocusAsync = null;
@@ -46068,8 +46084,6 @@ It will also ensure that focus remains in the dialog.
         return;
       }
 
-      this.blur();
-
       // clear the cached focus item
       this._defaultFocusAsync = this.async(function() {
         // focus the selected item when the menu receives focus, or the first item
@@ -46080,11 +46094,10 @@ It will also ensure that focus remains in the dialog.
 
         if (selectedItem) {
           this._setFocusedItem(selectedItem);
-        } else {
+        } else if (this.items[0]) {
           this._setFocusedItem(this.items[0]);
         }
-      // async 1ms to wait for `select` to get called from `_itemActivate`
-      }, 1);
+      });
     },
 
     /**
@@ -52687,11 +52700,11 @@ module.exports = Array.isArray || function (arr) {
       :host {
         display: block;
         margin: 24px 40px;
-        -webkit-overflow-scrolling: touch;
 
         background: var(--paper-dialog-background-color, --primary-background-color);
         color: var(--paper-dialog-color, --primary-text-color);
 
+        @apply(--layout-scroll);
         @apply(--paper-font-body1);
         @apply(--shadow-elevation-16dp);
         @apply(--paper-dialog);
