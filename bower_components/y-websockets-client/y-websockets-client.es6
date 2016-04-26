@@ -7020,8 +7020,8 @@ function extend (Y) {
       options.role = 'slave'
       super(y, options)
       this.options = options
-      options.url = options.url || 'https://yjs.dbis.rwth-aachen.de:5076'
-      var socket = io(options.url)
+      options.url = options.url || 'https://yjs.dbis.rwth-aachen.de:5072'
+      var socket = options.socket || io(options.url)
       this.socket = socket
       var self = this
 
@@ -7040,7 +7040,13 @@ function extend (Y) {
       this._onYjsEvent = function (message) {
         if (message.type != null) {
           if (message.type === 'sync done') {
-            self.setUserId(socket.id)
+            var userId = socket.id
+            if (socket._yjs_connection_counter == null) {
+              socket._yjs_connection_counter = 1
+            } else {
+              userId += socket._yjs_connection_counter++
+            }
+            self.setUserId(userId)
           }
           if (message.room === options.room) {
             self.receiveMessage('server', message)
@@ -7056,7 +7062,9 @@ function extend (Y) {
     }
     disconnect () {
       this.socket.emit('leaveRoom', this.options.room)
-      this.socket.disconnect()
+      if (!this.options.socket) {
+        this.socket.disconnect()
+      }
       super.disconnect()
     }
     destroy () {
@@ -7064,7 +7072,9 @@ function extend (Y) {
       this.socket.off('disconnect', this._onDisconnect)
       this.socket.off('yjsEvent', this._onYjsEvent)
       this.socket.off('connect', this._onConnect)
-      this.socket.destroy()
+      if (!this.options.socket) {
+        this.socket.destroy()
+      }
       this.socket = null
     }
     reconnect () {
@@ -7083,6 +7093,7 @@ function extend (Y) {
       return this.socket.disconnected
     }
   }
+  Connector.io = io
   Y.extend('websockets-client', Connector)
 }
 
