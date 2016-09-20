@@ -421,7 +421,7 @@ module.exports = function (Y/* :any */) {
 module.exports = function (Y) {
   var globalRoom = {
     users: {},
-    buffers: {}, // TODO: reimplement this idea. This does not cover all cases!! Here, you have a queue which is unrealistic (i.e. think about multiple incoming connections)
+    buffers: {},
     removeUser: function (user) {
       for (var i in this.users) {
         this.users[i].userLeft(user)
@@ -951,12 +951,15 @@ module.exports = function (Y /* :any */) {
           }
         }
         if (defined == null) {
-          var isGarbageCollected = yield* this.isGarbageCollected(op.id)
+          var opid = op.id
+          var isGarbageCollected = yield* this.isGarbageCollected(opid)
           if (!isGarbageCollected) {
+            // TODO: reduce number of get / put calls for op ..
             yield* Y.Struct[op.struct].execute.call(this, op)
             yield* this.addOperation(op)
             yield* this.store.operationAdded(this, op)
-
+            // operationAdded can change op..
+            op = yield* this.getOperation(opid)
             // if insertion, try to combine with left
             yield* this.tryCombineWithLeft(op)
           }
@@ -1020,6 +1023,7 @@ module.exports = function (Y /* :any */) {
           // Delete if DS says this is actually deleted
           var len = op.content != null ? op.content.length : 1
           var startId = op.id // You must not use op.id in the following loop, because op will change when deleted
+            // TODO: !! console.log('TODO: change this before commiting')
           for (let i = 0; i < len; i++) {
             var id = [startId[0], startId[1] + i]
             var opIsDeleted = yield* transaction.isDeleted(id)
@@ -1084,6 +1088,48 @@ module.exports = function (Y /* :any */) {
           this.transact(this.getNextRequest())
         }, 0)
       }
+    }
+    /*
+      Get a created/initialized type.
+    */
+    getType (id) {
+      return this.initializedTypes[JSON.stringify(id)]
+    }
+    /*
+      Init type. This is called when a remote operation is retrieved, and transformed to a type
+      TODO: delete type from store.initializedTypes[id] when corresponding id was deleted!
+    */
+    * initType (id, args) {
+      var sid = JSON.stringify(id)
+      var t = this.store.initializedTypes[sid]
+      if (t == null) {
+        var op/* :MapStruct | ListStruct */ = yield* this.getOperation(id)
+        if (op != null) {
+          t = yield* Y[op.type].typeDefinition.initType.call(this, this.store, op, args)
+          this.store.initializedTypes[sid] = t
+        }
+      }
+      return t
+    }
+    /*
+     Create type. This is called when the local user creates a type (which is a synchronous action)
+    */
+    createType (typedefinition, id) {
+      var structname = typedefinition[0].struct
+      id = id || this.getNextOpId(1)
+      var op = Y.Struct[structname].create(id)
+      op.type = typedefinition[0].name
+
+      this.requestTransaction(function * () {
+        if (op.id[0] === '_') {
+          yield* this.setOperation(op)
+        } else {
+          yield* this.applyCreatedOperations([op])
+        }
+      })
+      var t = Y[op.type].typeDefinition.createType(this, op, typedefinition[1])
+      this.initializedTypes[JSON.stringify(op.id)] = t
+      return t
     }
   }
   Y.AbstractDatabase = AbstractDatabase
@@ -1587,57 +1633,6 @@ module.exports = function (Y/* :any */) {
     ss: Store;
     */
     /*
-      Get a type based on the id of its model.
-      If it does not exist yes, create it.
-      TODO: delete type from store.initializedTypes[id] when corresponding id was deleted!
-    */
-    * getType (id, args) {
-      var sid = JSON.stringify(id)
-      var t = this.store.initializedTypes[sid]
-      if (t == null) {
-        var op/* :MapStruct | ListStruct */ = yield* this.getOperation(id)
-        if (op != null) {
-          t = yield* Y[op.type].typeDefinition.initType.call(this, this.store, op, args)
-          this.store.initializedTypes[sid] = t
-        }
-      }
-      return t
-    }
-    * createType (typedefinition, id) {
-      var structname = typedefinition[0].struct
-      id = id || this.store.getNextOpId(1)
-      var op
-      if (id[0] === '_') {
-        op = yield* this.getOperation(id)
-      } else {
-        op = Y.Struct[structname].create(id)
-        op.type = typedefinition[0].name
-      }
-      if (typedefinition[0].appendAdditionalInfo != null) {
-        yield* typedefinition[0].appendAdditionalInfo.call(this, op, typedefinition[1])
-      }
-      if (op[0] === '_') {
-        yield* this.setOperation(op)
-      } else {
-        yield* this.applyCreatedOperations([op])
-      }
-      return yield* this.getType(id, typedefinition[1])
-    }
-    /* createType (typedefinition, id) {
-      var structname = typedefinition[0].struct
-      id = id || this.store.getNextOpId(1)
-      var op = Y.Struct[structname].create(id)
-      op.type = typedefinition[0].name
-      if (typedefinition[0].appendAdditionalInfo != null) {
-        yield* typedefinition[0].appendAdditionalInfo.call(this, op, typedefinition[1])
-      }
-      // yield* this.applyCreatedOperations([op])
-      yield* Y.Struct[op.struct].execute.call(this, op)
-      yield* this.addOperation(op)
-      yield* this.store.operationAdded(this, op)
-      return yield* this.getType(id, typedefinition[1])
-    }*/
-    /*
       Apply operations that this user created (no remote ones!)
         * does not check for Struct.*.requiredOps()
         * also broadcasts it through the connector
@@ -2006,6 +2001,7 @@ module.exports = function (Y/* :any */) {
         if (o.right != null) {
           var right = yield* this.getOperation(o.right)
           right.left = o.left
+          yield* this.setOperation(right)
 
           if (o.originOf != null && o.originOf.length > 0) {
             // find new origin of right ops
@@ -2072,10 +2068,6 @@ module.exports = function (Y/* :any */) {
             }
             // we don't need to set right here, because
             // right should be in o.originOf => it is set it the previous for loop
-          } else {
-            // we didn't need to reset the origin of right
-            // so we have to set right here
-            yield* this.setOperation(right)
           }
         }
         // o may originate in another operation.
@@ -2504,6 +2496,7 @@ module.exports = function (Y/* :any */) {
           if (firstMissing != null) {
             // update startPos
             startPos = firstMissing.id[1]
+            startSS[user] = startPos
           }
         }
         yield* this.os.iterate(this, [user, startPos], [user, Number.MAX_VALUE], function * (op) {
@@ -2695,6 +2688,159 @@ module.exports = function (Y /* : any*/) {
     receivedOp (op) {
       if (this.awaiting <= 0) {
         this.onevent(op)
+      } else if (op.struct === 'Delete') {
+        var self = this
+        var checkDelete = function checkDelete (d) {
+          if (d.length == null) {
+            throw new Error('This shouldn\'t happen! d.length must be defined!')
+          }
+          // we check if o deletes something in self.waiting
+          // if so, we remove the deleted operation
+          for (var w = 0; w < self.waiting.length; w++) {
+            var i = self.waiting[w]
+            if (i.struct === 'Insert' && i.id[0] === d.target[0]) {
+              var iLength = i.hasOwnProperty('content') ? i.content.length : 1
+              var dStart = d.target[1]
+              var dEnd = d.target[1] + (d.length || 1)
+              var iStart = i.id[1]
+              var iEnd = i.id[1] + iLength
+              // Check if they don't overlap
+              if (iEnd <= dStart || dEnd <= iStart) {
+                // no overlapping
+                continue
+              }
+              // we check all overlapping cases. All cases:
+              /*
+                1)  iiiii
+                      ddddd
+                    --> modify i and d
+                2)  iiiiiii
+                      ddddd
+                    --> modify i, remove d
+                3)  iiiiiii
+                      ddd
+                    --> remove d, modify i, and create another i (for the right hand side)
+                4)  iiiii
+                    ddddddd
+                    --> remove i, modify d
+                5)  iiiiiii
+                    ddddddd
+                    --> remove both i and d (**)
+                6)  iiiiiii
+                    ddddd
+                    --> modify i, remove d
+                7)    iii
+                    ddddddd
+                    --> remove i, create and apply two d with checkDelete(d) (**)
+                8)    iiiii
+                    ddddddd
+                    --> remove i, modify d (**)
+                9)    iiiii
+                    ddddd
+                    --> modify i and d
+                (**) (also check if i contains content or type)
+              */
+              // TODO: I left some debugger statements, because I want to debug all cases once in production. REMEMBER END TODO
+              if (iStart < dStart) {
+                if (dStart < iEnd) {
+                  if (iEnd < dEnd) {
+                    // Case 1
+                    // remove the right part of i's content
+                    i.content.splice(dStart - iStart)
+                    // remove the start of d's deletion
+                    d.length = dEnd - iEnd
+                    d.target = [d.target[0], iEnd]
+                    continue
+                  } else if (iEnd === dEnd) {
+                    // Case 2
+                    i.content.splice(dStart - iStart)
+                    // remove d, we do that by simply ending this function
+                    return
+                  } else { // (dEnd < iEnd)
+                    // Case 3
+                    var newI = {
+                      id: [i.id[0], dEnd],
+                      content: i.content.slice(dEnd - iStart),
+                      struct: 'Insert'
+                    }
+                    self.waiting.push(newI)
+                    i.content.splice(dStart - iStart)
+                    return
+                  }
+                }
+              } else if (dStart === iStart) {
+                if (iEnd < dEnd) {
+                  // Case 4
+                  d.length = dEnd - iEnd
+                  d.target = [d.target[0], iEnd]
+                  i.content = []
+                  continue
+                } else if (iEnd === dEnd) {
+                  // Case 5
+                  self.waiting.splice(w, 1)
+                  return
+                } else { // (dEnd < iEnd)
+                  // Case 6
+                  i.content = i.content.slice(dEnd - iStart)
+                  i.id = [i.id[0], dEnd]
+                  return
+                }
+              } else { // (dStart < iStart)
+                if (iStart < dEnd) {
+                  // they overlap
+                  /*
+                  7)    iii
+                      ddddddd
+                      --> remove i, create and apply two d with checkDelete(d) (**)
+                  8)    iiiii
+                      ddddddd
+                      --> remove i, modify d (**)
+                  9)    iiiii
+                      ddddd
+                      --> modify i and d
+                  */
+                  if (iEnd < dEnd) {
+                    // Case 7
+                    // debugger // TODO: You did not test this case yet!!!! (add the debugger here)
+                    self.waiting.splice(w, 1)
+                    checkDelete({
+                      target: [d.target[0], dStart],
+                      length: iStart - dStart,
+                      struct: 'Delete'
+                    })
+                    checkDelete({
+                      target: [d.target[0], iEnd],
+                      length: iEnd - dEnd,
+                      struct: 'Delete'
+                    })
+                    return
+                  } else if (iEnd === dEnd) {
+                    // Case 8
+                    self.waiting.splice(w, 1)
+                    w--
+                    d.length -= iLength
+                    continue
+                  } else { // dEnd < iEnd
+                    // Case 9
+                    d.length = iStart - dStart
+                    i.content.splice(0, dEnd - iStart)
+                    i.id = [i.id[0], dEnd]
+                    continue
+                  }
+                }
+              }
+            }
+          }
+          // finished with remaining operations
+          self.waiting.push(d)
+        }
+        if (op.key == null) {
+          // deletes in list
+          checkDelete(op)
+        } else {
+          // deletes in map
+          this.waiting.push(op)
+        }
       } else {
         this.waiting.push(op)
       }
@@ -2743,7 +2889,11 @@ module.exports = function (Y /* : any*/) {
           var o = this.waiting[i]
           if (o.struct === 'Insert') {
             var _o = yield* transaction.getInsertion(o.id)
-            if (!Y.utils.compareIds(_o.id, o.id)) {
+            if (_o.parentSub != null && _o.left != null) {
+              // if o is an insertion of a map struc (parentSub is defined), then it shouldn't be necessary to compute left
+              this.waiting.splice(i, 1)
+              i-- // update index
+            } else if (!Y.utils.compareIds(_o.id, o.id)) {
               // o got extended
               o.left = [o.id[0], o.id[1] - 1]
             } else if (_o.left == null) {
@@ -2779,11 +2929,27 @@ module.exports = function (Y /* : any*/) {
               ins.push(o)
             }
           })
+          this.waiting = []
           // put in executable order
           ins = notSoSmartSort(ins)
-          ins.forEach(this.onevent)
-          dels.forEach(this.onevent)
-          this.waiting = []
+          // this.onevent can trigger the creation of another operation
+          // -> check if this.awaiting increased & stop computation if it does
+          for (var i = 0; i < ins.length; i++) {
+            if (this.awaiting === 0) {
+              this.onevent(ins[i])
+            } else {
+              this.waiting = this.waiting.concat(ins.slice(i))
+              break
+            }
+          }
+          for (i = 0; i < dels.length; i++) {
+            if (this.awaiting === 0) {
+              this.onevent(dels[i])
+            } else {
+              this.waiting = this.waiting.concat(dels.slice(i))
+              break
+            }
+          }
         }
       }
     }
@@ -2888,6 +3054,14 @@ module.exports = function (Y /* : any*/) {
   Y.utils.EventHandler = EventHandler
 
   /*
+    Default class of custom types!
+  */
+  class CustomType {
+
+  }
+  Y.utils.CustomType = CustomType
+
+  /*
     A wrapper for the definition of a custom type.
     Every custom type must have three properties:
 
@@ -2898,7 +3072,7 @@ module.exports = function (Y /* : any*/) {
     * class
       - the constructor of the custom type (e.g. in order to inherit from a type)
   */
-  class CustomType { // eslint-disable-line
+  class CustomTypeDefinition { // eslint-disable-line
     /* ::
     struct: any;
     initType: any;
@@ -2909,12 +3083,14 @@ module.exports = function (Y /* : any*/) {
       if (def.struct == null ||
         def.initType == null ||
         def.class == null ||
-        def.name == null
+        def.name == null ||
+        def.createType == null
       ) {
         throw new Error('Custom type was not initialized correctly!')
       }
       this.struct = def.struct
       this.initType = def.initType
+      this.createType = def.createType
       this.class = def.class
       this.name = def.name
       if (def.appendAdditionalInfo != null) {
@@ -2926,13 +3102,13 @@ module.exports = function (Y /* : any*/) {
       this.parseArguments.typeDefinition = this
     }
   }
-  Y.utils.CustomType = CustomType
+  Y.utils.CustomTypeDefinition = CustomTypeDefinition
 
   Y.utils.isTypeDefinition = function isTypeDefinition (v) {
     if (v != null) {
-      if (v instanceof Y.utils.CustomType) return [v]
-      else if (v.constructor === Array && v[0] instanceof Y.utils.CustomType) return v
-      else if (v instanceof Function && v.typeDefinition instanceof Y.utils.CustomType) return [v.typeDefinition]
+      if (v instanceof Y.utils.CustomTypeDefinition) return [v]
+      else if (v.constructor === Array && v[0] instanceof Y.utils.CustomTypeDefinition) return v
+      else if (v instanceof Function && v.typeDefinition instanceof Y.utils.CustomTypeDefinition) return [v.typeDefinition]
     }
     return false
   }
@@ -3192,7 +3368,7 @@ module.exports = Y
 Y.requiringModules = requiringModules
 
 Y.extend = function (name, value) {
-  if (value instanceof Y.utils.CustomType) {
+  if (value instanceof Y.utils.CustomTypeDefinition) {
     Y[name] = value.parseArguments
   } else {
     Y[name] = value
@@ -3318,6 +3494,9 @@ class YConfig {
       for (var propertyname in opts.share) {
         var typeConstructor = opts.share[propertyname].split('(')
         var typeName = typeConstructor.splice(0, 1)
+        var type = Y[typeName]
+        var typedef = type.typeDefinition
+        var id = ['_', typedef.struct + '_' + typeName + '_' + propertyname + '_' + typeConstructor]
         var args = []
         if (typeConstructor.length === 1) {
           try {
@@ -3325,11 +3504,13 @@ class YConfig {
           } catch (e) {
             throw new Error('Was not able to parse type definition! (share.' + propertyname + ')')
           }
+          if (type.typeDefinition.parseArguments == null) {
+            throw new Error(typeName + ' does not expect arguments!')
+          } else {
+            args = typedef.parseArguments(args[0])[1]
+          }
         }
-        var type = Y[typeName]
-        var typedef = type.typeDefinition
-        var id = ['_', typedef.struct + '_' + typeName + '_' + propertyname + '_' + typeConstructor]
-        share[propertyname] = yield* this.createType(type.apply(typedef, args), id)
+        share[propertyname] = yield* this.store.initType.call(this, id, args)
       }
       this.store.whenTransactionsFinished()
         .then(callback)
