@@ -1,8 +1,8 @@
 
 # ![Yjs](http://y-js.org/images/yjs.png)
 
-Yjs is a framework for p2p shared editing on structured data like (rich-)text, json, and XML.
-It is similar to [ShareJs] and [OpenCoweb], but easy to use.
+Yjs is a framework for offline-first p2p shared editing on structured data like text, richtext, json, or XML.
+It is fairly easy to get started, as Yjs hides most of the complexity of concurrent editing.
 For additional information, demos, and tutorials visit [y-js.org](http://y-js.org/).
 
 ### Extensions
@@ -42,7 +42,7 @@ Connectors, Databases, and Types are available as modules that extend Yjs. Here 
 |[richtext](https://github.com/y-js/y-richtext) | Collaborate on rich text. Supports two way binding to the [Quill Rich Text Editor](http://quilljs.com/)|
 
 ## Use it! 
-Install Yjs, and its modules with [bower](http://bower.io/), or [npm](https://www.npmjs.org/package/yjs).  
+Install Yjs, and its modules with [bower](http://bower.io/), or [npm](https://www.npmjs.org/package/yjs).
 
 ### Bower
 ```
@@ -71,6 +71,19 @@ require('y-text')(Y)
 // do the same for all modules you want to use
 ```
 
+### ES6 Syntax
+```
+import Y from 'yjs'
+import yArray from 'y-array'
+import yWebsocketsClient from 'y-webrtc'
+import yMemory from 'y-memory'
+import yArray from 'y-array'
+import yMap from 'y-map'
+import yText from 'y-text'
+// ..
+Y.extend(yArray, yWebsocketsClient, yMemory, yArray, yMap, yText /*, .. */)
+```
+
 # Text editing example
 Install dependencies
 ```
@@ -78,17 +91,17 @@ bower i yjs y-memory y-webrtc y-array y-text
 ```
 
 Here is a simple example of a shared textarea
-```
+```HTML
   <!DOCTYPE html>
   <html>
     <body>
       <script src="./bower_components/yjs/y.js"></script>
+      <!-- Yjs automatically includes all missing dependencies (browser only) -->
       <script>
         Y({
           db: {
             name: 'memory' // use memory database adapter.
-            // name: 'indexeddb'
-            // name: 'leveldb'
+            // name: 'indexeddb' // use indexeddb database adapter instead for offline apps
           },
           connector: {
             name: 'webrtc', // use webrtc connector
@@ -104,9 +117,9 @@ Here is a simple example of a shared textarea
           // The Yjs instance `y` is available
           // y.share.* contains the shared types
   
-          // Bind the textarea to y.share.textarea
+          // Bind `y.share.textarea` to `<textarea/>`
           y.share.textarea.bind(document.querySelector('textarea'))
-        }
+        })
       </script>
       <textarea></textarea>
     </body>
@@ -121,6 +134,9 @@ Report _any_ issues to the [Github issue page](https://github.com/y-js/yjs/issue
 # API
 
 ### Y(options)
+* Y.extend(module1, module2, ..)
+  * Add extensions to Y
+  * `Y.extend(require('y-webrtc'))` has the same semantics as `require('y-webrtc')(Y)` 
 * options.db
   * Will be forwarded to the database adapter. Specify the database adaper on `options.db.name`.
   * Have a look at the used database adapter repository to see all available options.
@@ -242,10 +258,7 @@ This is a complete rewrite of the 0.5 version of Yjs. Since Yjs 0.6.0 it is poss
 I created this framework during my bachelor thesis at the chair of computer science 5 [(i5)](http://dbis.rwth-aachen.de/cms), RWTH University. Since December 2014 I'm working on Yjs as a part of my student worker job at the i5.
 
 ## License
-Yjs is licensed under the [MIT License](./LICENSE.txt).
+Yjs is licensed under the [MIT License](./LICENSE).
 
 <yjs@dbis.rwth-aachen.de>
-
-[ShareJs]: https://github.com/share/ShareJS
-[OpenCoweb]: https://github.com/opencoweb/coweb/wiki
 

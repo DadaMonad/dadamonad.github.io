@@ -27,6 +27,13 @@ function extend (Y) {
               throw new Error('Unexpected operation!')
             }
           }
+          var _e = this._content[pos]
+          // when using indexeddb db adapter, the op could already exist (see y-js/y-indexeddb#2)
+          // If the algorithm works correctly, the double should always exist on the correct position (pos - the computed destination)
+          if (_e != null && Y.utils.compareIds(_e.id, op.id)) {
+            // is already defined
+            return
+          }
           var values
           var length
           if (op.hasOwnProperty('opContent')) {
@@ -122,10 +129,13 @@ function extend (Y) {
         return this.os.getType(this._content[pos].type)
       }
     }
-    // only returns primitive values
     toArray () {
-      return this._content.map(function (x, i) {
-        return x.val
+      return this._content.map((x, i) => {
+        if (x.type != null) {
+          return this.os.getType(x.type)
+        } else {
+          return x.val
+        }
       })
     }
     push (contents) {
