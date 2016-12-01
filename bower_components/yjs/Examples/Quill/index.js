@@ -8,7 +8,7 @@ Y({
   },
   connector: {
     name: 'websockets-client',
-    room: 'richtext-example-quill-1.0'
+    room: 'richtext-example-quill-1.0-test'
   },
   sourceDir: '/bower_components',
   share: {
@@ -37,4 +37,3 @@ Y({
   // bind quill to richtext type
   y.share.richtext.bind(window.quill)
 })
-

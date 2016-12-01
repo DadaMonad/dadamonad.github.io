@@ -1,4 +1,10 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/**
+ * yjs - A framework for real-time p2p shared editing on any data
+ * @version v12.1.2
+ * @link http://y-js.org
+ * @license MIT
+ */
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.yArray = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* global Y */
 'use strict'
 
@@ -14,6 +20,11 @@ function extend (Y) {
       this.eventHandler = new Y.utils.EventHandler((op) => {
         // this._debugEvents.push(JSON.parse(JSON.stringify(op)))
         if (op.struct === 'Insert') {
+          // when using indexeddb db adapter, the op could already exist (see y-js/y-indexeddb#2)
+          if (this._content.some(function (c) { return Y.utils.compareIds(c.id, op.id) })) {
+            // op exists
+            return
+          }
           let pos
           // we check op.left only!,
           // because op.right might not be defined when this is called
@@ -27,6 +38,14 @@ function extend (Y) {
               throw new Error('Unexpected operation!')
             }
           }
+          /* (see above for new approach)
+          var _e = this._content[pos]
+          // when using indexeddb db adapter, the op could already exist (see y-js/y-indexeddb#2)
+          // If the algorithm works correctly, the double should always exist on the correct position (pos - the computed destination)
+          if (_e != null && Y.utils.compareIds(_e.id, op.id)) {
+            // is already defined
+            return
+          }*/
           var values
           var length
           if (op.hasOwnProperty('opContent')) {
@@ -122,10 +141,13 @@ function extend (Y) {
         return this.os.getType(this._content[pos].type)
       }
     }
-    // only returns primitive values
     toArray () {
-      return this._content.map(function (x, i) {
-        return x.val
+      return this._content.map((x, i) => {
+        if (x.type != null) {
+          return this.os.getType(x.type)
+        } else {
+          return x.val
+        }
       })
     }
     push (contents) {
@@ -314,5 +336,6 @@ if (typeof Y !== 'undefined') {
   extend(Y)
 }
 
-},{}]},{},[1])
+},{}]},{},[1])(1)
+});
 

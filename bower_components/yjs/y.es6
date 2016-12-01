@@ -1,6 +1,15 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/**
+ * yjs - A framework for real-time p2p shared editing on any data
+ * @version v12.1.2
+ * @link http://y-js.org
+ * @license MIT
+ */
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.Y = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* @flow */
 'use strict'
+
+function canRead (auth) { return auth === 'read' || auth === 'write' }
+function canWrite (auth) { return auth === 'write' }
 
 module.exports = function (Y/* :any */) {
   class AbstractConnector {
@@ -55,6 +64,17 @@ module.exports = function (Y/* :any */) {
       this.syncStep2 = Promise.resolve()
       this.broadcastOpBuffer = []
       this.protocolVersion = 11
+      this.authInfo = opts.auth || null
+      this.checkAuth = opts.checkAuth || function () { return Promise.resolve('write') } // default is everyone has write access
+    }
+    resetAuth (auth) {
+      if (this.authInfo !== auth) {
+        this.authInfo = auth
+        this.broadcast({
+          type: 'auth',
+          auth: this.authInfo
+        })
+      }
     }
     reconnect () {
     }
@@ -67,6 +87,16 @@ module.exports = function (Y/* :any */) {
       this.whenSyncedListeners = []
       return this.y.db.stopGarbageCollector()
     }
+    repair () {
+      console.info('Repairing the state of Yjs. This can happen if messages get lost, and Yjs detects that something is wrong. If this happens often, please report an issue here: https://github.com/y-js/yjs/issues')
+      for (var name in this.connections) {
+        this.connections[name].isSynced = false
+      }
+      this.isSynced = false
+      this.currentSyncTarget = null
+      this.broadcastedHB = false
+      this.findNextSyncTarget()
+    }
     setUserId (userId) {
       if (this.userId == null) {
         this.userId = userId
@@ -77,6 +107,9 @@ module.exports = function (Y/* :any */) {
     }
     onUserEvent (f) {
       this.userEventListeners.push(f)
+    }
+    removeUserEventListener (f) {
+      this.userEventListeners = this.userEventListeners.filter(g => { f !== g })
     }
     userLeft (user) {
       if (this.connections[user] != null) {
@@ -127,13 +160,8 @@ module.exports = function (Y/* :any */) {
         this.whenSyncedListeners.push(f)
       }
     }
-    /*
-
-     returns false, if there is no sync target
-     true otherwise
-    */
     findNextSyncTarget () {
-      if (this.currentSyncTarget != null || this.isSynced) {
+      if (this.currentSyncTarget != null) {
         return // "The current sync has not finished!"
       }
 
@@ -154,20 +182,25 @@ module.exports = function (Y/* :any */) {
             type: 'sync step 1',
             stateSet: stateSet,
             deleteSet: deleteSet,
-            protocolVersion: conn.protocolVersion
+            protocolVersion: conn.protocolVersion,
+            auth: conn.authInfo
           })
         })
       } else {
-        this.y.db.requestTransaction(function *() {
-          // it is crucial that isSynced is set at the time garbageCollectAfterSync is called
-          conn.isSynced = true
-          yield* this.garbageCollectAfterSync()
-          // call whensynced listeners
-          for (var f of conn.whenSyncedListeners) {
-            f()
-          }
-          conn.whenSyncedListeners = []
-        })
+        if (!conn.isSynced) {
+          this.y.db.requestTransaction(function *() {
+            if (!conn.isSynced) {
+              // it is crucial that isSynced is set at the time garbageCollectAfterSync is called
+              conn.isSynced = true
+              yield* this.garbageCollectAfterSync()
+              // call whensynced listeners
+              for (var f of conn.whenSyncedListeners) {
+                f()
+              }
+              conn.whenSyncedListeners = []
+            }
+          })
+        }
       }
     }
     send (uid, message) {
@@ -208,7 +241,7 @@ module.exports = function (Y/* :any */) {
     */
     receiveMessage (sender/* :UserId */, message/* :Message */) {
       if (sender === this.userId) {
-        return
+        return Promise.resolve()
       }
       if (this.debug) {
         console.log(`receive ${sender} -> ${this.userId}: ${message.type}`, JSON.parse(JSON.stringify(message))) // eslint-disable-line
@@ -223,91 +256,117 @@ module.exports = function (Y/* :any */) {
           type: 'sync stop',
           protocolVersion: this.protocolVersion
         })
-        return
+        return Promise.reject('Incompatible protocol version')
       }
-      if (message.type === 'sync step 1') {
-        let conn = this
-        let m = message
-        this.y.db.requestTransaction(function *() {
-          var currentStateSet = yield* this.getStateSet()
-          yield* this.applyDeleteSet(m.deleteSet)
-
-          var ds = yield* this.getDeleteSet()
-          var ops = yield* this.getOperations(m.stateSet)
-          conn.send(sender, {
-            type: 'sync step 2',
-            os: ops,
-            stateSet: currentStateSet,
-            deleteSet: ds,
-            protocolVersion: this.protocolVersion
-          })
-          if (this.forwardToSyncingClients) {
-            conn.syncingClients.push(sender)
-            setTimeout(function () {
-              conn.syncingClients = conn.syncingClients.filter(function (cli) {
-                return cli !== sender
-              })
-              conn.send(sender, {
-                type: 'sync done'
-              })
-            }, 5000) // TODO: conn.syncingClientDuration)
-          } else {
-            conn.send(sender, {
-              type: 'sync done'
+      if (message.auth != null && this.connections[sender] != null) {
+        // authenticate using auth in message
+        var auth = this.checkAuth(message.auth, this.y)
+        this.connections[sender].auth = auth
+        auth.then(auth => {
+          for (var f of this.userEventListeners) {
+            f({
+              action: 'userAuthenticated',
+              user: sender,
+              auth: auth
             })
           }
-          conn._setSyncedWith(sender)
         })
-      } else if (message.type === 'sync step 2') {
-        let conn = this
-        var broadcastHB = !this.broadcastedHB
-        this.broadcastedHB = true
-        var db = this.y.db
-        var defer = {}
-        defer.promise = new Promise(function (resolve) {
-          defer.resolve = resolve
-        })
-        this.syncStep2 = defer.promise
-        let m /* :MessageSyncStep2 */ = message
-        db.requestTransaction(function * () {
-          yield* this.applyDeleteSet(m.deleteSet)
-          this.store.apply(m.os)
-          db.requestTransaction(function * () {
-            var ops = yield* this.getOperations(m.stateSet)
-            if (ops.length > 0) {
-              if (!broadcastHB) { // TODO: consider to broadcast here..
-                conn.send(sender, {
-                  type: 'update',
-                  ops: ops
-                })
+      } else if (this.connections[sender] != null && this.connections[sender].auth == null) {
+        // authenticate without otherwise
+        this.connections[sender].auth = this.checkAuth(null, this.y)
+      }
+      if (this.connections[sender] != null && this.connections[sender].auth != null) {
+        return this.connections[sender].auth.then((auth) => {
+          if (message.type === 'sync step 1' && canRead(auth)) {
+            let conn = this
+            let m = message
+
+            this.y.db.requestTransaction(function *() {
+              var currentStateSet = yield* this.getStateSet()
+              if (canWrite(auth)) {
+                yield* this.applyDeleteSet(m.deleteSet)
+              }
+
+              var ds = yield* this.getDeleteSet()
+              var ops = yield* this.getOperations(m.stateSet)
+              conn.send(sender, {
+                type: 'sync step 2',
+                os: ops,
+                stateSet: currentStateSet,
+                deleteSet: ds,
+                protocolVersion: this.protocolVersion,
+                auth: this.authInfo
+              })
+              if (this.forwardToSyncingClients) {
+                conn.syncingClients.push(sender)
+                setTimeout(function () {
+                  conn.syncingClients = conn.syncingClients.filter(function (cli) {
+                    return cli !== sender
+                  })
+                  conn.send(sender, {
+                    type: 'sync done'
+                  })
+                }, 5000) // TODO: conn.syncingClientDuration)
               } else {
-                // broadcast only once!
-                conn.broadcastOps(ops)
+                conn.send(sender, {
+                  type: 'sync done'
+                })
+              }
+            })
+          } else if (message.type === 'sync step 2' && canWrite(auth)) {
+            let conn = this
+            var broadcastHB = !this.broadcastedHB
+            this.broadcastedHB = true
+            var db = this.y.db
+            var defer = {}
+            defer.promise = new Promise(function (resolve) {
+              defer.resolve = resolve
+            })
+            this.syncStep2 = defer.promise
+            let m /* :MessageSyncStep2 */ = message
+            db.requestTransaction(function * () {
+              yield* this.applyDeleteSet(m.deleteSet)
+              this.store.apply(m.os)
+              db.requestTransaction(function * () {
+                var ops = yield* this.getOperations(m.stateSet)
+                if (ops.length > 0) {
+                  if (!broadcastHB) { // TODO: consider to broadcast here..
+                    conn.send(sender, {
+                      type: 'update',
+                      ops: ops
+                    })
+                  } else {
+                    // broadcast only once!
+                    conn.broadcastOps(ops)
+                  }
+                }
+                defer.resolve()
+              })
+            })
+          } else if (message.type === 'sync done') {
+            var self = this
+            this.syncStep2.then(function () {
+              self._setSyncedWith(sender)
+            })
+          } else if (message.type === 'update' && canWrite(auth)) {
+            if (this.forwardToSyncingClients) {
+              for (var client of this.syncingClients) {
+                this.send(client, message)
               }
             }
-            defer.resolve()
-          })
-        })
-      } else if (message.type === 'sync done') {
-        var self = this
-        this.syncStep2.then(function () {
-          self._setSyncedWith(sender)
-        })
-      } else if (message.type === 'update') {
-        if (this.forwardToSyncingClients) {
-          for (var client of this.syncingClients) {
-            this.send(client, message)
+            if (this.y.db.forwardAppliedOperations) {
+              var delops = message.ops.filter(function (o) {
+                return o.struct === 'Delete'
+              })
+              if (delops.length > 0) {
+                this.broadcastOps(delops)
+              }
+            }
+            this.y.db.apply(message.ops)
           }
-        }
-        if (this.y.db.forwardAppliedOperations) {
-          var delops = message.ops.filter(function (o) {
-            return o.struct === 'Delete'
-          })
-          if (delops.length > 0) {
-            this.broadcastOps(delops)
-          }
-        }
-        this.y.db.apply(message.ops)
+        })
+      } else {
+        return Promise.reject('Unable to deliver message')
       }
     }
     _setSyncedWith (user) {
@@ -441,11 +500,21 @@ module.exports = function (Y) {
       }
     },
     whenTransactionsFinished: function () {
-      var ps = []
-      for (var name in this.users) {
-        ps.push(this.users[name].y.db.whenTransactionsFinished())
-      }
-      return Promise.all(ps)
+      var self = this
+      return new Promise(function (resolve, reject) {
+        // The connector first has to send the messages to the db.
+        // Wait for the checkAuth-function to resolve
+        // The test lib only has a simple checkAuth function: `() => Promise.resolve()`
+        // Just add a function to the event-queue, in order to wait for the event.
+        // TODO: this may be buggy in test applications (but it isn't be for real-life apps)
+        setTimeout(function () {
+          var ps = []
+          for (var name in self.users) {
+            ps.push(self.users[name].y.db.whenTransactionsFinished())
+          }
+          Promise.all(ps).then(resolve, reject)
+        }, 0)
+      })
     },
     flushOne: function flushOne () {
       var bufs = []
@@ -471,8 +540,9 @@ module.exports = function (Y) {
           delete buff[sender]
         }
         var user = globalRoom.users[userId]
-        user.receiveMessage(m[0], m[1])
-        return user.y.db.whenTransactionsFinished()
+        return user.receiveMessage(m[0], m[1]).then(function () {
+          return user.y.db.whenTransactionsFinished()
+        }, function () {})
       } else {
         return false
       }
@@ -489,16 +559,14 @@ module.exports = function (Y) {
             }
             globalRoom.whenTransactionsFinished().then(nextFlush)
           } else {
-            setTimeout(function () {
-              var c = globalRoom.flushOne()
-              if (c) {
-                c.then(function () {
-                  globalRoom.whenTransactionsFinished().then(nextFlush)
-                })
-              } else {
-                resolve()
-              }
-            }, 0)
+            c = globalRoom.flushOne()
+            if (c) {
+              c.then(function () {
+                globalRoom.whenTransactionsFinished().then(nextFlush)
+              })
+            } else {
+              resolve()
+            }
           }
         }
         globalRoom.whenTransactionsFinished().then(nextFlush)
@@ -524,7 +592,7 @@ module.exports = function (Y) {
       this.syncingClientDuration = 0
     }
     receiveMessage (sender, m) {
-      super.receiveMessage(sender, JSON.parse(JSON.stringify(m)))
+      return super.receiveMessage(sender, JSON.parse(JSON.stringify(m)))
     }
     send (userId, message) {
       var buffer = globalRoom.buffers[userId]
@@ -571,7 +639,7 @@ module.exports = function (Y) {
           if (buff[sender].length === 0) {
             delete buff[sender]
           }
-          this.receiveMessage(m[0], m[1])
+          yield this.receiveMessage(m[0], m[1])
         }
         yield self.whenTransactionsFinished()
       })
@@ -659,12 +727,18 @@ module.exports = function (Y /* :any */) {
       }
       this.gc1 = [] // first stage
       this.gc2 = [] // second stage -> after that, remove the op
-      this.gcTimeout = !opts.gcTimeout ? 50000 : opts.gcTimeouts
+      this.gc = opts.gc == null || opts.gc
+      if (this.gc) {
+        this.gcTimeout = !opts.gcTimeout ? 50000 : opts.gcTimeout
+      } else {
+        this.gcTimeout = -1
+      }
+
       function garbageCollect () {
         return os.whenTransactionsFinished().then(function () {
           if (os.gc1.length > 0 || os.gc2.length > 0) {
-            if (!os.y.isConnected()) {
-              console.warn('gc should be empty when disconnected!')
+            if (!os.y.connector.isSynced) {
+              console.warn('gc should be empty when not synced!')
             }
             return new Promise((resolve) => {
               os.requestTransaction(function * () {
@@ -696,9 +770,44 @@ module.exports = function (Y /* :any */) {
       if (this.gcTimeout > 0) {
         garbageCollect()
       }
+      this.repairCheckInterval = !opts.repairCheckInterval ? 6000 : opts.repairCheckInterval
+      this.opsReceivedTimestamp = new Date()
+      this.startRepairCheck()
+    }
+    startRepairCheck () {
+      var os = this
+      if (this.repairCheckInterval > 0) {
+        this.repairCheckIntervalHandler = setInterval(function repairOnMissingOperations () {
+          /*
+            Case 1. No ops have been received in a while (new Date() - os.opsReceivedTimestamp > os.repairCheckInterval)
+              - 1.1 os.listenersById is empty. Then the state was correct the whole time. -> Nothing to do (nor to update)
+              - 1.2 os.listenersById is not empty.
+                      * Then the state was incorrect for at least {os.repairCheckInterval} seconds.
+                      * -> Remove everything in os.listenersById and sync again (connector.repair())
+            Case 2. An op has been received in the last {os.repairCheckInterval } seconds.
+                    It is not yet necessary to check for faulty behavior. Everything can still resolve itself. Wait for more messages.
+                    If nothing was received for a while and os.listenersById is still not emty, we are in case 1.2
+                    -> Do nothing
+
+            Baseline here is: we really only have to catch case 1.2..
+          */
+          if (
+            new Date() - os.opsReceivedTimestamp > os.repairCheckInterval &&
+            Object.keys(os.listenersById).length > 0 // os.listenersById is not empty
+          ) {
+            // haven't received operations for over {os.repairCheckInterval} seconds, resend state vector
+            os.listenersById = {}
+            os.opsReceivedTimestamp = new Date() // update so you don't send repair several times in a row
+            os.y.connector.repair()
+          }
+        }, this.repairCheckInterval)
+      }
+    }
+    stopRepairCheck () {
+      clearInterval(this.repairCheckIntervalHandler)
     }
     queueGarbageCollector (id) {
-      if (this.y.isConnected()) {
+      if (this.y.connector.isSynced && this.gc) {
         this.gc1.push(id)
       }
     }
@@ -731,6 +840,8 @@ module.exports = function (Y /* :any */) {
     }
     stopGarbageCollector () {
       var self = this
+      this.gc = false
+      this.gcTimeout = -1
       return new Promise(function (resolve) {
         self.requestTransaction(function * () {
           var ungc /* :Array<Struct> */ = self.gc1.concat(self.gc2)
@@ -753,7 +864,7 @@ module.exports = function (Y /* :any */) {
       TODO: rename this function
 
       Rulez:
-      * Only gc if this user is online
+      * Only gc if this user is online & gc turned on
       * The most left element in a list must not be gc'd.
         => There is at least one element in the list
 
@@ -762,7 +873,9 @@ module.exports = function (Y /* :any */) {
     * addToGarbageCollector (op, left) {
       if (
         op.gc == null &&
-        op.deleted === true
+        op.deleted === true &&
+        this.store.gc &&
+        this.store.y.connector.isSynced
       ) {
         var gc = false
         if (left != null && left.deleted === true) {
@@ -788,9 +901,7 @@ module.exports = function (Y /* :any */) {
       this.gc2 = this.gc2.filter(filter)
       delete op.gc
     }
-    * destroy () {
-      clearInterval(this.gcInterval)
-      this.gcInterval = null
+    destroyTypes () {
       for (var key in this.initializedTypes) {
         var type = this.initializedTypes[key]
         if (type._destroy != null) {
@@ -799,6 +910,11 @@ module.exports = function (Y /* :any */) {
           console.error('The type you included does not provide destroy functionality, it will remain in memory (updating your packages will help).')
         }
       }
+    }
+    * destroy () {
+      clearInterval(this.gcInterval)
+      this.gcInterval = null
+      this.stopRepairCheck()
     }
     setUserId (userId) {
       if (!this.userIdPromise.inProgress) {
@@ -830,12 +946,14 @@ module.exports = function (Y /* :any */) {
     /*
       Apply a list of operations.
 
+      * we save a timestamp, because we received new operations that could resolve ops in this.listenersById (see this.startRepairCheck)
       * get a transaction
       * check whether all Struct.*.requiredOps are in the OS
       * check if it is an expected op (otherwise wait for it)
       * check if was deleted, apply a delete operation after op was applied
     */
     apply (ops) {
+      this.opsReceivedTimestamp = new Date()
       for (var i = 0; i < ops.length; i++) {
         var o = ops[i]
         if (o.id == null || o.id[0] !== this.y.connector.userId) {
@@ -980,8 +1098,7 @@ module.exports = function (Y /* :any */) {
      */
     * operationAdded (transaction, op) {
       if (op.struct === 'Delete') {
-        var target = yield* transaction.getInsertion(op.target)
-        var type = this.initializedTypes[JSON.stringify(target.parent)]
+        var type = this.initializedTypes[JSON.stringify(op.targetParent)]
         if (type != null) {
           yield* type._changed(transaction, op)
         }
@@ -1049,10 +1166,8 @@ module.exports = function (Y /* :any */) {
             resolve: resolve,
             promise: promise
           }
-          return promise
-        } else {
-          return this.transactionsFinished.promise
         }
+        return this.transactionsFinished.promise
       } else {
         return Promise.resolve()
       }
@@ -1168,7 +1283,11 @@ module.exports = function (Y/* :any */) {
     */
     Delete: {
       encode: function (op) {
-        return op
+        return {
+          target: op.target,
+          length: op.length || 0,
+          struct: 'Delete'
+        }
       },
       requiredOps: function (op) {
         return [] // [op.target]
@@ -1646,7 +1765,7 @@ module.exports = function (Y/* :any */) {
           send.push(Y.Struct[op.struct].encode(op))
         }
       }
-      if (!this.store.y.connector.isDisconnected() && send.length > 0) { // TODO: && !this.store.forwardAppliedOperations (but then i don't send delete ops)
+      if (this.store.y.connector.isSynced && send.length > 0) { // TODO: && !this.store.forwardAppliedOperations (but then i don't send delete ops)
         // is connected, and this is not going to be send in addOperation
         this.store.y.connector.broadcastOps(send)
       }
@@ -1756,7 +1875,8 @@ module.exports = function (Y/* :any */) {
             yield* this.store.operationAdded(this, {
               struct: 'Delete',
               target: target.id,
-              length: targetLength
+              length: targetLength,
+              targetParent: target.parent
             })
           }
           // need to gc in the end!
@@ -1917,6 +2037,9 @@ module.exports = function (Y/* :any */) {
     * garbageCollectAfterSync () {
       if (this.store.gc1.length > 0 || this.store.gc2.length > 0) {
         console.warn('gc should be empty after sync')
+      }
+      if (!this.store.gc) {
+        return
       }
       yield* this.os.iterate(this, null, null, function * (op) {
         if (op.gc) {
@@ -2225,7 +2348,7 @@ module.exports = function (Y/* :any */) {
         }
         if (this.store.forwardAppliedOperations) {
           var ops = []
-          ops.push({struct: 'Delete', target: [d[0], d[1]], length: del[2]})
+          ops.push({struct: 'Delete', target: [del[0], del[1]], length: del[2]})
           this.store.y.connector.broadcastOps(ops)
         }
       }
@@ -2263,7 +2386,7 @@ module.exports = function (Y/* :any */) {
     }
     * addOperation (op) {
       yield* this.os.put(op)
-      if (!this.store.y.connector.isDisconnected() && this.store.forwardAppliedOperations && typeof op.id[1] !== 'string') {
+      if (this.store.y.connector.isSynced && this.store.forwardAppliedOperations && typeof op.id[1] !== 'string') {
         // is connected, and this is not going to be send in addOperation
         this.store.y.connector.broadcastOps([op])
       }
@@ -2648,7 +2771,7 @@ module.exports = function (Y /* : any*/) {
         try {
           this.eventListeners[i](event)
         } catch (e) {
-          console.error('User events must not throw Errors!')
+          console.error('Your observer threw an error. This error was caught so that Yjs still can ensure data consistency! In order to debug this error you have to check "Pause On Caught Exceptions"', e)
         }
       }
     }
@@ -2678,7 +2801,6 @@ module.exports = function (Y /* : any*/) {
     destroy () {
       super.destroy()
       this.waiting = null
-      this.awaiting = null
       this.onevent = null
     }
     /*
@@ -3368,19 +3490,36 @@ module.exports = Y
 Y.requiringModules = requiringModules
 
 Y.extend = function (name, value) {
-  if (value instanceof Y.utils.CustomTypeDefinition) {
-    Y[name] = value.parseArguments
+  if (arguments.length === 2 && typeof name === 'string') {
+    if (value instanceof Y.utils.CustomTypeDefinition) {
+      Y[name] = value.parseArguments
+    } else {
+      Y[name] = value
+    }
+    if (requiringModules[name] != null) {
+      requiringModules[name].resolve()
+      delete requiringModules[name]
+    }
   } else {
-    Y[name] = value
-  }
-  if (requiringModules[name] != null) {
-    requiringModules[name].resolve()
-    delete requiringModules[name]
+    for (var i = 0; i < arguments.length; i++) {
+      var f = arguments[i]
+      if (typeof f === 'function') {
+        f(Y)
+      } else {
+        throw new Error('Expected function!')
+      }
+    }
   }
 }
 
 Y.requestModules = requestModules
 function requestModules (modules) {
+  var sourceDir
+  if (Y.sourceDir === null) {
+    sourceDir = null
+  } else {
+    sourceDir = Y.sourceDir || '/bower_components'
+  }
   // determine if this module was compiled for es5 or es6 (y.js vs. y.es6)
   // if Insert.execute is a Function, then it isnt a generator..
   // then load the es5(.js) files..
@@ -3393,10 +3532,11 @@ function requestModules (modules) {
       if (requiringModules[module] == null) {
         // module does not exist
         if (typeof window !== 'undefined' && window.Y !== 'undefined') {
-          var imported = document.createElement('script')
-          imported.src = Y.sourceDir + '/' + modulename + '/' + modulename + extention
-          document.head.appendChild(imported)
-
+          if (sourceDir != null) {
+            var imported = document.createElement('script')
+            imported.src = sourceDir + '/' + modulename + '/' + modulename + extention
+            document.head.appendChild(imported)
+          }
           let requireModule = {}
           requiringModules[module] = requireModule
           requireModule.promise = new Promise(function (resolve) {
@@ -3445,31 +3585,36 @@ type YOptions = {
 */
 
 function Y (opts/* :YOptions */) /* :Promise<YConfig> */ {
+  if (opts.hasOwnProperty('sourceDir')) {
+    Y.sourceDir = opts.sourceDir
+  }
   opts.types = opts.types != null ? opts.types : []
   var modules = [opts.db.name, opts.connector.name].concat(opts.types)
   for (var name in opts.share) {
     modules.push(opts.share[name])
   }
-  Y.sourceDir = opts.sourceDir
   return new Promise(function (resolve, reject) {
-    setTimeout(function () {
-      Y.requestModules(modules).then(function () {
-        if (opts == null) reject('An options object is expected! ')
-        else if (opts.connector == null) reject('You must specify a connector! (missing connector property)')
-        else if (opts.connector.name == null) reject('You must specify connector name! (missing connector.name property)')
-        else if (opts.db == null) reject('You must specify a database! (missing db property)')
-        else if (opts.connector.name == null) reject('You must specify db name! (missing db.name property)')
-        else if (opts.share == null) reject('You must specify a set of shared types!')
-        else {
+    if (opts == null) reject('An options object is expected! ')
+    else if (opts.connector == null) reject('You must specify a connector! (missing connector property)')
+    else if (opts.connector.name == null) reject('You must specify connector name! (missing connector.name property)')
+    else if (opts.db == null) reject('You must specify a database! (missing db property)')
+    else if (opts.connector.name == null) reject('You must specify db name! (missing db.name property)')
+    else {
+      opts = Y.utils.copyObject(opts)
+      opts.connector = Y.utils.copyObject(opts.connector)
+      opts.db = Y.utils.copyObject(opts.db)
+      opts.share = Y.utils.copyObject(opts.share)
+      setTimeout(function () {
+        Y.requestModules(modules).then(function () {
           var yconfig = new YConfig(opts)
           yconfig.db.whenUserIdSet(function () {
             yconfig.init(function () {
               resolve(yconfig)
             })
           })
-        }
-      }).catch(reject)
-    }, 0)
+        }).catch(reject)
+      }, 0)
+    }
   })
 }
 
@@ -3484,6 +3629,7 @@ class YConfig {
     this.options = opts
     this.db = new Y[opts.db.name](this, opts.db)
     this.connector = new Y[opts.connector.name](this, opts.connector)
+    this.connected = true
   }
   init (callback) {
     var opts = this.options
@@ -3520,29 +3666,50 @@ class YConfig {
     return this.connector.isSynced
   }
   disconnect () {
-    return this.connector.disconnect()
+    if (this.connected) {
+      this.connected = false
+      return this.connector.disconnect()
+    } else {
+      return Promise.resolve()
+    }
   }
   reconnect () {
-    return this.connector.reconnect()
+    if (!this.connected) {
+      this.connected = true
+      return this.connector.reconnect()
+    } else {
+      return Promise.resolve()
+    }
   }
   destroy () {
+    var self = this
+    return this.close().then(function () {
+      if (self.db.deleteDB != null) {
+        return self.db.deleteDB()
+      } else {
+        return Promise.resolve()
+      }
+    })
+  }
+  close () {
+    var self = this
+    this.share = null
     if (this.connector.destroy != null) {
       this.connector.destroy()
     } else {
       this.connector.disconnect()
     }
-    var self = this
-    this.db.requestTransaction(function * () {
-      yield* self.db.destroy()
-      self.connector = null
-      self.db = null
+    return this.db.whenTransactionsFinished(function () {
+      this.db.destroyTypes()
+      // make sure to wait for all transactions before destroying the db
+      this.db.requestTransaction(function * () {
+        yield* self.db.destroy()
+      })
+      return this.db.whenTransactionsFinished()
     })
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.Y = Y
-}
-
-},{"./Connector.js":1,"./Connectors/Test.js":2,"./Database.js":3,"./Struct.js":4,"./Transaction.js":5,"./Utils.js":6}]},{},[7])
+},{"./Connector.js":1,"./Connectors/Test.js":2,"./Database.js":3,"./Struct.js":4,"./Transaction.js":5,"./Utils.js":6}]},{},[7])(7)
+});
 

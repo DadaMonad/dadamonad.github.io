@@ -1,4 +1,10 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/**
+ * yjs - A framework for real-time p2p shared editing on any data
+ * @version v12.1.3
+ * @link http://y-js.org
+ * @license MIT
+ */
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.yRichtext = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* global Y */
 'use strict'
 
@@ -88,9 +94,7 @@ function extend (Y) {
         return q
       }
       _destroy () {
-        for (var i = this.instances.length - 1; i >= 0; i--) {
-          this.unbindQuill(this.instances[i].editor)
-        }
+        this.unbindQuillAll()
         super._destroy()
       }
       get length () {
@@ -458,6 +462,7 @@ function extend (Y) {
             var afterRetain = pos + op.retain
             if (afterRetain > this.length) {
               // debugger // TODO: check why this is still called..
+              // console.warn('Yjs internal: This should not happen')
               let additionalContent = _quill.getText(this.length)
               _quill.insertText(this.length, additionalContent)
               // quill.deleteText(this.length + additionalContent.length, quill.getLength()) the api changed!
@@ -475,6 +480,7 @@ function extend (Y) {
             for (name in opAttributes) {
               var attr = opAttributes[name]
               this.select(pos, afterRetain, name, attr)
+              /*
               let format = {}
               format[name] = attr == null ? false : attr
               format = this._formatAttributesForQuill(format)
@@ -484,6 +490,7 @@ function extend (Y) {
                 _quill.formatText(pos, op.retain, removeFormat)
               }
               _quill.formatText(pos, op.retain, format)
+              */
             }
             pos = afterRetain
           }
@@ -492,12 +499,18 @@ function extend (Y) {
       bind () {
         this.bindQuill.apply(this, arguments)
       }
+      unbindQuillAll () {
+        for (var i = this.instances.length - 1; i >= 0; i--) {
+          this.unbindQuill(this.instances[i].editor)
+        }
+      }
       unbindQuill (quill) {
         var i = this.instances.findIndex(function (binding) {
           return binding.editor === quill
         })
         if (i >= 0) {
           var binding = this.instances[i]
+          binding.editor.yRichtextBinding = null
           this.unobserve(binding.yCallback)
           binding.editor.off('text-change', binding.quillCallback)
           this.instances.splice(i, 1)
@@ -515,19 +528,26 @@ function extend (Y) {
             try {
               f()
             } catch (e) {
+              quill.update()
               token = true
               throw new Error(e)
             }
+            quill.update()
             token = true
           }
         }
+        if (quill.yRichtextBinding != null) {
+          quill.yRichtextBinding.unbindQuill(quill)
+        }
         quill.setContents(this.toDelta())
+        quill.update()
 
         function quillCallback (delta) {
           mutualExcluse(function () {
             self.applyDelta(delta, quill)
           })
         }
+        // TODO: Investigate if 'editor-change' is more appropriate!
         quill.on('text-change', quillCallback)
 
         function yCallback (event) {
@@ -785,6 +805,7 @@ function extend (Y) {
           yCallback: yCallback,
           quillCallback: quillCallback
         })
+        quill.yRichtextBinding = this
       }
     }
     Y.extend('Richtext', new Y.utils.CustomTypeDefinition({
@@ -819,5 +840,6 @@ if (typeof Y !== 'undefined') {
   extend(Y)
 }
 
-},{}]},{},[1])
+},{}]},{},[1])(1)
+});
 
