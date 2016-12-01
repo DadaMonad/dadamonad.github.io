@@ -44,8 +44,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _SEARCH_RESET_TIMEOUT_MS: 1000,
-
     hostAttributes: {
       'role': 'menu',
       'tabindex': '0'
@@ -126,40 +124,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {KeyboardEvent} event A KeyboardEvent.
      */
     _focusWithKeyboardEvent: function(event) {
-      this.cancelDebouncer('_clearSearchText');
-
-      var searchText = this._searchText || '';
-      var key = event.key && event.key.length == 1 ? event.key :
-          String.fromCharCode(event.keyCode);
-      searchText += key.toLocaleLowerCase();
-
-      var searchLength = searchText.length;
-
       for (var i = 0, item; item = this.items[i]; i++) {
-        if (item.hasAttribute('disabled')) {
-          continue;
-        }
-
         var attr = this.attrForItemTitle || 'textContent';
-        var title = (item[attr] || item.getAttribute(attr) || '').trim();
+        var title = item[attr] || item.getAttribute(attr);
 
-        if (title.length < searchLength) {
-          continue;
-        }
-
-        if (title.slice(0, searchLength).toLocaleLowerCase() == searchText) {
+        if (!item.hasAttribute('disabled') && title &&
+            title.trim().charAt(0).toLowerCase() === String.fromCharCode(event.keyCode).toLowerCase()) {
           this._setFocusedItem(item);
           break;
         }
       }
-
-      this._searchText = searchText;
-      this.debounce('_clearSearchText', this._clearSearchText,
-                    this._SEARCH_RESET_TIMEOUT_MS);
-    },
-
-    _clearSearchText: function() {
-      this._searchText = '';
     },
 
     /**

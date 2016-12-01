@@ -7,8 +7,7 @@
   "keywords": [
     "web-components",
     "polymer",
-    "progress",
-    "loading"
+    "progress"
   ],
   "main": "paper-progress.html",
   "repository": {

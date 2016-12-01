@@ -67,16 +67,6 @@ module.exports = function (Y/* :any */) {
       this.whenSyncedListeners = []
       return this.y.db.stopGarbageCollector()
     }
-    repair () {
-      console.info('Repairing the state of Yjs. This can happen if messages get lost, and Yjs detects that something is wrong. If this happens often, please report an issue here: https://github.com/y-js/yjs/issues')
-      for (var name in this.connections) {
-        this.connections[name].isSynced = false
-      }
-      this.isSynced = false
-      this.currentSyncTarget = null
-      this.broadcastedHB = false
-      this.findNextSyncTarget()
-    }
     setUserId (userId) {
       if (this.userId == null) {
         this.userId = userId
@@ -706,41 +696,6 @@ module.exports = function (Y /* :any */) {
       if (this.gcTimeout > 0) {
         garbageCollect()
       }
-      this.repairCheckInterval = !opts.repairCheckInterval ? 6000 : opts.repairCheckInterval
-      this.opsReceivedTimestamp = new Date()
-      this.startRepairCheck()
-    }
-    startRepairCheck () {
-      var os = this
-      if (this.repairCheckInterval > 0) {
-        this.repairCheckIntervalHandler = setInterval(function repairOnMissingOperations () {
-          /*
-            Case 1. No ops have been received in a while (new Date() - os.opsReceivedTimestamp > os.repairCheckInterval)
-              - 1.1 os.listenersById is empty. Then the state was correct the whole time. -> Nothing to do (nor to update)
-              - 1.2 os.listenersById is not empty.
-                      * Then the state was incorrect for at least {os.repairCheckInterval} seconds.
-                      * -> Remove everything in os.listenersById and sync again (connector.repair())
-            Case 2. An op has been received in the last {os.repairCheckInterval } seconds.
-                    It is not yet necessary to check for faulty behavior. Everything can still resolve itself. Wait for more messages.
-                    If nothing was received for a while and os.listenersById is still not emty, we are in case 1.2
-                    -> Do nothing
-
-            Baseline here is: we really only have to catch case 1.2..
-          */
-          if (
-            new Date() - os.opsReceivedTimestamp > os.repairCheckInterval &&
-            Object.keys(os.listenersById).length > 0 // os.listenersById is not empty
-          ) {
-            // haven't received operations for over {os.repairCheckInterval} seconds, resend state vector
-            os.listenersById = {}
-            os.opsReceivedTimestamp = new Date() // update so you don't send repair several times in a row
-            os.y.connector.repair()
-          }
-        }, this.repairCheckInterval)
-      }
-    }
-    stopRepairCheck () {
-      clearInterval(this.repairCheckIntervalHandler)
     }
     queueGarbageCollector (id) {
       if (this.y.isConnected()) {
@@ -836,7 +791,6 @@ module.exports = function (Y /* :any */) {
     * destroy () {
       clearInterval(this.gcInterval)
       this.gcInterval = null
-      this.stopRepairCheck()
       for (var key in this.initializedTypes) {
         var type = this.initializedTypes[key]
         if (type._destroy != null) {
@@ -876,14 +830,12 @@ module.exports = function (Y /* :any */) {
     /*
       Apply a list of operations.
 
-      * we save a timestamp, because we received new operations that could resolve ops in this.listenersById (see this.startRepairCheck)
       * get a transaction
       * check whether all Struct.*.requiredOps are in the OS
       * check if it is an expected op (otherwise wait for it)
       * check if was deleted, apply a delete operation after op was applied
     */
     apply (ops) {
-      this.opsReceivedTimestamp = new Date()
       for (var i = 0; i < ops.length; i++) {
         var o = ops[i]
         if (o.id == null || o.id[0] !== this.y.connector.userId) {
@@ -2273,7 +2225,7 @@ module.exports = function (Y/* :any */) {
         }
         if (this.store.forwardAppliedOperations) {
           var ops = []
-          ops.push({struct: 'Delete', target: [del[0], del[1]], length: del[2]})
+          ops.push({struct: 'Delete', target: [d[0], d[1]], length: del[2]})
           this.store.y.connector.broadcastOps(ops)
         }
       }
@@ -3416,31 +3368,19 @@ module.exports = Y
 Y.requiringModules = requiringModules
 
 Y.extend = function (name, value) {
-  if (arguments.length === 2 && typeof name === 'string') {
-    if (value instanceof Y.utils.CustomTypeDefinition) {
-      Y[name] = value.parseArguments
-    } else {
-      Y[name] = value
-    }
-    if (requiringModules[name] != null) {
-      requiringModules[name].resolve()
-      delete requiringModules[name]
-    }
+  if (value instanceof Y.utils.CustomTypeDefinition) {
+    Y[name] = value.parseArguments
   } else {
-    for (var i = 0; i < arguments.length; i++) {
-      var f = arguments[i]
-      if (typeof f === 'function') {
-        f(Y)
-      } else {
-        throw new Error('Expected function!')
-      }
-    }
+    Y[name] = value
+  }
+  if (requiringModules[name] != null) {
+    requiringModules[name].resolve()
+    delete requiringModules[name]
   }
 }
 
 Y.requestModules = requestModules
-function requestModules (modules, sourceDir) {
-  sourceDir = sourceDir || '/bower_components'
+function requestModules (modules) {
   // determine if this module was compiled for es5 or es6 (y.js vs. y.es6)
   // if Insert.execute is a Function, then it isnt a generator..
   // then load the es5(.js) files..
@@ -3454,7 +3394,7 @@ function requestModules (modules, sourceDir) {
         // module does not exist
         if (typeof window !== 'undefined' && window.Y !== 'undefined') {
           var imported = document.createElement('script')
-          imported.src = sourceDir + '/' + modulename + '/' + modulename + extention
+          imported.src = Y.sourceDir + '/' + modulename + '/' + modulename + extention
           document.head.appendChild(imported)
 
           let requireModule = {}
@@ -3510,9 +3450,10 @@ function Y (opts/* :YOptions */) /* :Promise<YConfig> */ {
   for (var name in opts.share) {
     modules.push(opts.share[name])
   }
+  Y.sourceDir = opts.sourceDir
   return new Promise(function (resolve, reject) {
     setTimeout(function () {
-      Y.requestModules(modules, opts.sourceDir).then(function () {
+      Y.requestModules(modules).then(function () {
         if (opts == null) reject('An options object is expected! ')
         else if (opts.connector == null) reject('You must specify a connector! (missing connector property)')
         else if (opts.connector.name == null) reject('You must specify connector name! (missing connector.name property)')

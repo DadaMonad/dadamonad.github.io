@@ -32,11 +32,11 @@ function extend (Y /* :any */) {
         }
         // compute op event
         if (op.struct === 'Insert') {
-          if (op.left === null && !Y.utils.compareIds(op.id, this.map[key])) {
+          if (op.left === null) {
             var value
             // TODO: what if op.deleted??? I partially handles this case here.. but need to send delete event instead. somehow related to #4
             if (op.opContent != null) {
-              value = this.os.getType(op.opContent)
+              value = this.os.getType(this.opContents[key])
               delete this.contents[key]
               if (op.deleted) {
                 delete this.opContents[key]
